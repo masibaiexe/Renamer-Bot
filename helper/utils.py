@@ -32,17 +32,30 @@ License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICEN
 
 # extra imports
 import math, time, re, datetime, pytz, os
-from config import Config, rkn 
+from config import Config, rkn
+import random
 
 # pyrogram imports
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+
+def get_speed_icon(speed_bps):
+    speed_mbps = speed_bps / (1024 * 1024)
+    if speed_mbps < 7:
+        return "🐢"
+    elif speed_mbps < 11:
+        return "🚀"
+    else:
+        return "🛸"
+
+
 async def progress_for_pyrogram(current, total, ud_type, message, start):
     now = time.time()
     diff = now - start
-    if round(diff % 5.00) == 0 or current == total:        
+    if round(diff % 5.00) == 0 or current == total:
         percentage = current * 100 / total
         speed = current / diff
+        speed_icon = get_speed_icon(speed)
         elapsed_time = round(diff) * 1000
         time_to_completion = round((total - current) / speed) * 1000
         estimated_total_time = elapsed_time + time_to_completion
@@ -50,26 +63,51 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
         elapsed_time = TimeFormatter(milliseconds=elapsed_time)
         estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
 
-        progress = "{0}{1}".format(
-            ''.join(["▣" for i in range(math.floor(percentage / 5))]),
-            ''.join(["▢" for i in range(20 - math.floor(percentage / 5))])
-        )            
-        tmp = progress + rkn.RKN_PROGRESS.format( 
+        progress_bar = "{0}{1}".format(
+            ''.join(["▣" for _ in range(math.floor(percentage / 5))]),
+            ''.join(["▢" for _ in range(20 - math.floor(percentage / 5))])
+        )
+
+        # Static footer (Option A)
+        footer = "╰━━━━━━━━━━━━━━━━➣"
+
+        progress_template = f"""<b>
+╭━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━━➣
+
+┃    🗂️ ᴄᴏᴍᴘʟᴇᴛᴇᴅ: {{1}}
+
+┃    📦 ᴛᴏᴛᴀʟ ꜱɪᴢᴇ: {{2}}
+
+┃    🔋 ꜱᴛᴀᴛᴜꜱ: {{0}}%
+
+┃    {{3}} ꜱᴘᴇᴇᴅ: {{5}}/s
+
+┃    ⏰ ᴇᴛᴀ: {{4}}
+
+{footer}
+</b>"""
+
+        tmp = progress_bar + progress_template.format(
             round(percentage, 2),
             humanbytes(current),
             humanbytes(total),
-            humanbytes(speed),            
-            estimated_total_time if estimated_total_time != '' else "0 s"
+            speed_icon,
+            estimated_total_time,
+            humanbytes(speed)
         )
+
         try:
             await message.edit(
-                text=f"{ud_type}\n\n{tmp}",               
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✖️ 𝙲𝙰𝙽𝙲𝙴𝙻 ✖️", callback_data="close")]])                                               
+                text=f"{ud_type}\n\n{tmp}",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("✖️ 𝙲𝙰𝙽𝙲ᴇʟ ✖️", callback_data="close")]]
+                )
             )
         except:
             pass
 
-def humanbytes(size):    
+
+def humanbytes(size):
     if not size:
         return ""
     power = 2**10
@@ -91,29 +129,32 @@ def TimeFormatter(milliseconds: int) -> str:
         ((str(minutes) + "ᴍ, ") if minutes else "") + \
         ((str(seconds) + "ꜱ, ") if seconds else "") + \
         ((str(milliseconds) + "ᴍꜱ, ") if milliseconds else "")
-    return tmp[:-2] 
+    return tmp[:-2]
+
 
 def convert(seconds):
     seconds = seconds % (24 * 3600)
     hour = seconds // 3600
     seconds %= 3600
     minutes = seconds // 60
-    seconds %= 60      
+    seconds %= 60
     return "%d:%02d:%02d" % (hour, minutes, seconds)
+
 
 async def send_log(b, u):
     if Config.LOG_CHANNEL:
-        curr = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+        curr = datetime.datetime.now(pytz.timezone("Africa/Nairobi"))
         log_message = (
-            "**--Nᴇᴡ Uꜱᴇʀ Sᴛᴀʀᴛᴇᴅ Tʜᴇ Bᴏᴛ--**\n\n"
-            f"Uꜱᴇʀ: {u.mention}\n"
-            f"Iᴅ: `{u.id}`\n"
-            f"Uɴ: @{u.username}\n\n"
-            f"Dᴀᴛᴇ: {curr.strftime('%d %B, %Y')}\n"
-            f"Tɪᴍᴇ: {curr.strftime('%I:%M:%S %p')}\n\n"
-            f"By: {b.mention}"
+            "**🚀--Nᴇᴡ Uꜱᴇʀ Sᴛᴀʀᴛᴇᴅ Tʜᴇ Bᴏᴛ--**\n\n"
+            f"📜Uꜱᴇʀ: {u.mention}\n"
+            f"🆔Iᴅ: `{u.id}`\n"
+            f"👤Uɴ: @{u.username}\n\n"
+            f"🗓️Dᴀᴛᴇ: {curr.strftime('%d %B, %Y')}\n"
+            f"⏰Tɪᴍᴇ: {curr.strftime('%I:%M:%S %p')}\n\n"
+            f"🚀Started: {b.mention}"
         )
         await b.send_message(Config.LOG_CHANNEL, log_message)
+
 
 async def get_seconds_first(time_string):
     conversion_factors = {
@@ -130,10 +171,11 @@ async def get_seconds_first(time_string):
 
     for i in range(0, len(parts), 2):
         value = int(parts[i])
-        unit = parts[i+1].rstrip('s')  # Remove 's' from unit
+        unit = parts[i+1].rstrip('s')
         total_seconds += value * conversion_factors.get(unit, 0)
 
     return total_seconds
+
 
 async def get_seconds(time_string):
     conversion_factors = {
@@ -154,27 +196,30 @@ async def get_seconds(time_string):
 
     return total_seconds
 
-async def add_prefix_suffix(input_string, prefix='', suffix=''):
+
+def add_prefix_suffix(input_string, prefix='', suffix=''):
     pattern = r'(?P<filename>.*?)(\.\w+)?$'
     match = re.search(pattern, input_string)
-    
+
     if match:
         filename = match.group('filename')
         extension = match.group(2) or ''
-        
+
         prefix_str = f"{prefix} " if prefix else ""
         suffix_str = f" {suffix}" if suffix else ""
-        
+
         return f"{prefix_str}{filename}{suffix_str}{extension}"
     else:
         return input_string
+
 
 async def remove_path(*paths):
     for path in paths:
         if path and os.path.lexists(path):
             os.remove(path)
 
-async def metadata_text(metadata_text):
+
+def metadata_text(metadata_text):
     author = None
     title = None
     video_title = None
@@ -195,6 +240,7 @@ async def metadata_text(metadata_text):
             subtitle_title = f[len("change-subtitle-title"):].strip()
 
     return author, title, video_title, audio_title, subtitle_title
+
 
 # (c) @RknDeveloperr
 # Rkn Developer 
