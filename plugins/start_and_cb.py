@@ -311,11 +311,10 @@ async def cb_handler(client, query: CallbackQuery):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(" Bᴀᴄᴋ", callback_data="about")]]))
 
     elif data == "source_code":
-    await query.message.edit_text(
-        text=rkn.DEV_TXT,
-        disable_web_page_preview=True,
-        reply_markup=InlineKeyboardMarkup([
-            [
+        await query.message.edit_text(
+            text=rkn.DEV_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([[
                 # ⚠️ DO NOT REMOVE MAIN SOURCE ⚠️
                 InlineKeyboardButton(
                     "💞 Mᴀɪɴ Sᴏᴜʀᴄᴇ 💞",
@@ -328,12 +327,10 @@ async def cb_handler(client, query: CallbackQuery):
                     "🍴 Fᴏʀᴋᴇᴅ Sᴏᴜʀᴄᴇ 🍴",
                     url="https://github.com/yudurov/Digital-Renamer-Bot"
                 )
-            ],
-            [
+            ],[
                 InlineKeyboardButton("🔒 Cʟᴏꜱᴇ", callback_data="close"),
                 InlineKeyboardButton("◀️ Bᴀᴄᴋ", callback_data="start")
-            ]
-        ])
+            ]])
     )
 
     elif data == "close":
