@@ -311,18 +311,31 @@ async def cb_handler(client, query: CallbackQuery):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(" Bᴀᴄᴋ", callback_data="about")]]))
 
     elif data == "source_code":
-        await query.message.edit_text(
-            text=rkn.DEV_TXT,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([[
-                #⚠️ don't change source code & source link ⚠️ #
-           #Whoever is deploying this repo is given a warning ⚠️ not to remove this repo link #first & last warning ⚠️   
-                InlineKeyboardButton("💞 Sᴏᴜʀᴄᴇ Cᴏᴅᴇ 💞", url="https://github.com/DigitalBotz/Digital-Rename-Bot")
-            ],[
-                InlineKeyboardButton("🔒 Cʟᴏꜱᴇ", callback_data = "close"),
-                InlineKeyboardButton("◀️ Bᴀᴄᴋ", callback_data = "start")
-                 ]])          
-        )
+    await query.message.edit_text(
+        text=rkn.DEV_TXT,
+        disable_web_page_preview=True,
+        reply_markup=InlineKeyboardMarkup([
+            [
+                # ⚠️ DO NOT REMOVE MAIN SOURCE ⚠️
+                InlineKeyboardButton(
+                    "💞 Mᴀɪɴ Sᴏᴜʀᴄᴇ 💞",
+                    url="https://github.com/DigitalBotz/Digital-Rename-Bot"
+                )
+            ],
+            [
+                # ✅ Forked source button
+                InlineKeyboardButton(
+                    "🍴 Fᴏʀᴋᴇᴅ Sᴏᴜʀᴄᴇ 🍴",
+                    url="https://github.com/yudurov/Digital-Renamer-Bot"
+                )
+            ],
+            [
+                InlineKeyboardButton("🔒 Cʟᴏꜱᴇ", callback_data="close"),
+                InlineKeyboardButton("◀️ Bᴀᴄᴋ", callback_data="start")
+            ]
+        ])
+    )
+
     elif data == "close":
         try:
             await query.message.delete()
