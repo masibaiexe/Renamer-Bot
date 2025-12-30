@@ -237,7 +237,7 @@ async def doc(event):
     # Capture the original text (with filename) BEFORE editing
     original_text = msg.text
     
-    # Edit message to Processing and CLEAR BUTTONS
+    # Edit message to Processing and CLEAR BUTTONS with buttons=None
     rkn_processing = await msg.edit("`☄️Processing...`", buttons=None)
 	
     # Creating Directory for Metadata
@@ -349,8 +349,8 @@ async def doc(event):
                  f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
              )             
     else:
-         # FIXED: Using HTML tag <b> for bold, replacing Markdown **
-         caption = f"<b>{new_filename}</b>"
+         # FIXED: Removed asterisks. Now just plain text.
+         caption = f"{new_filename}"
  
     # Correctly check for thumbs on the message object
     thumb_to_download = None
@@ -419,7 +419,7 @@ async def doc(event):
             parse_mode='html' # Ensure HTML parsing is used for Log Channel too
         )
         
-        # FIXED: Use send_file with parse_mode='html'
+        # Use send_file with parse_mode='html'
         await bot.send_file(
             user_id,
             file=uploaded_msg.media,
@@ -437,5 +437,5 @@ async def doc(event):
         return await rkn_processing.edit(f" Eʀʀᴏʀ {e}")
 
     await remove_path(ph_path, file_path, dl_path, metadata_path)
-    # FIXED: buttons=None clears the buttons
+    # FIXED: Added buttons=None to remove buttons from the final message
     return await rkn_processing.edit("🎈 Uploaded Successfully....", buttons=None)
