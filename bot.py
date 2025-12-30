@@ -44,8 +44,6 @@ from telethon.sessions import StringSession
 # bots imports
 from config import Config
 from plugins.web_support import web_server
-# NOTE: Ensure plugins/file_rename.py is also converted to Telethon to export 'app' correctly
-from plugins.file_rename import app 
 
 # Get logging configurations
 logging.basicConfig(
@@ -76,9 +74,6 @@ class DigitalRenameBot(TelegramClient):
         self.premium = Config.PREMIUM_MODE
         self.uploadlimit = Config.UPLOAD_LIMIT_MODE
         
-        # Set global config bot instance so plugins can access it
-        Config.BOT = self
-        
         # Start Web Server
         app_runner = aiohttp.web.AppRunner(await web_server())
         await app_runner.setup()
@@ -86,21 +81,22 @@ class DigitalRenameBot(TelegramClient):
         await aiohttp.web.TCPSite(app_runner, bind_address, Config.PORT).start()
         
         # Manual Plugin Loader
-        # Telethon doesn't auto-load plugins like Pyrogram, so we keep this manual loading logic.
-        # Ensure your plugins use the client instance from Config.BOT or similar logic.
+        # We skip file_rename because it's already imported globally below
         path = "plugins/*.py"
         files = glob.glob(path)
         for name in files:
-            with open(name) as a:
-                patt = Path(a.name)
-                plugin_name = patt.stem.replace(".py", "")
-                plugins_path = Path(f"plugins/{plugin_name}.py")
-                import_path = "plugins.{}".format(plugin_name)
-                spec = importlib.util.spec_from_file_location(import_path, plugins_path)
-                load = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(load)
-                sys.modules["plugins" + plugin_name] = load
-                print("Digital Botz Imported " + plugin_name)
+            patt = Path(name)
+            plugin_name = patt.stem
+            if plugin_name == "file_rename":
+                continue # Skip re-importing file_rename
+                
+            plugins_path = Path(f"plugins/{plugin_name}.py")
+            import_path = "plugins.{}".format(plugin_name)
+            spec = importlib.util.spec_from_file_location(import_path, plugins_path)
+            load = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(load)
+            sys.modules["plugins." + plugin_name] = load
+            print("Digital Botz Imported " + plugin_name)
                 
         print(f"{me.first_name} Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
 
@@ -138,21 +134,25 @@ class DigitalRenameBot(TelegramClient):
         await super().disconnect()
 
 
+# --- CRITICAL FIX: Initialize Bot and Config.BOT BEFORE importing plugins ---
 digital_instance = DigitalRenameBot()
+Config.BOT = digital_instance 
+
+# Now import the plugins that rely on Config.BOT
+from plugins.file_rename import app 
+# --------------------------------------------------------------------------
 
 def main():
     async def start_services():
-        if Config.STRING_SESSION:
+        if Config.STRING_SESSION and app:
             # Start both the userbot (app) and the bot (digital_instance)
-            # Assuming 'app' is also a Telethon client or compatible awaitable
             await asyncio.gather(app.start(), digital_instance.start())
         else:
             await asyncio.gather(digital_instance.start())
         
         # Idle / Run until disconnected
-        # Telethon uses run_until_disconnected() to block
         print("Services Started. Idling...")
-        if Config.STRING_SESSION:
+        if Config.STRING_SESSION and app:
             await asyncio.gather(app.run_until_disconnected(), digital_instance.run_until_disconnected())
         else:
             await digital_instance.run_until_disconnected()
@@ -182,3 +182,4 @@ if __name__ == "__main__":
 # Telegram Channel @RknDeveloper & @Rkn_Botz
 # Developer @RknDeveloperr
 # Update Channel @Digital_Botz & @DigitalBotz_Support
+
