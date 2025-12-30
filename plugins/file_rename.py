@@ -217,8 +217,9 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # Pass text positionally
-        await event.reply(
+        # FIX: Use client.send_message instead of event.reply to Ensure 'reply_to' targets the FILE, not the text message
+        await client.send_message(
+            event.chat_id,
             f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
             reply_to=file_msg.id,
             buttons=buttons
@@ -260,8 +261,14 @@ async def doc(event):
     except Exception as e:
         return await rkn_processing.edit(f"⚠️ Something went wrong can't able to set Prefix or Suffix ☹️ \n\n❄️ Contact My Creator -> @RknDeveloperr\nError: {e}")
 
-    # FIX: Get reply message from the message object
+    # FIX: Robust way to get the original file message
     file_msg = await msg.get_reply_message()
+    if not file_msg and msg.reply_to_msg_id:
+        try:
+            file_msg = await bot.get_messages(event.chat_id, ids=msg.reply_to_msg_id)
+        except:
+            pass
+            
     if not file_msg or not file_msg.media:
         return await rkn_processing.edit("Original file not found.")
 
