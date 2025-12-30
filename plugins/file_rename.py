@@ -171,7 +171,7 @@ async def refunc(event):
                 buttons=buttons
             )
         except Exception as e:
-            # Fallback if reply_to fails (e.g. original message deleted)
+            # Fallback if reply_to fails
             await client.send_message(
                 event.chat_id,
                 f"Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ\n• Fɪʟᴇ Nᴀᴍᴇ :- `{new_name}`",
@@ -184,6 +184,8 @@ async def doc(event):
     bot = event.client
     msg = await event.get_message()
     original_text = msg.text
+    
+    # 1. Clear Buttons immediately
     rkn_processing = await msg.edit("`☄️Processing...`", buttons=None)
 	
     if not os.path.isdir("Metadata"):
@@ -191,6 +193,7 @@ async def doc(event):
 
     user_id = event.chat_id
     try:
+        # 2. Robust filename extraction to remove ANY stray asterisks
         new_name = original_text
         new_filename_ = new_name.split(":-")[1].strip().replace("`", "").replace("**", "")
     except:
@@ -235,7 +238,7 @@ async def doc(event):
         await progress_for_pyrogram(current, total, DOWNLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # Stable Download
+        # FAST DOWNLOAD (Safe Wrapper)
         dl_path = await fast_download(
             client=bot,
             msg=file_msg,
@@ -289,6 +292,7 @@ async def doc(event):
                  await digital_botz.set_used_limit(user_id, used_remove)
              return await rkn_processing.edit(f"Caption Error: {e}")             
     else:
+         # 3. Clean Caption - No Asterisks
          caption = f"{new_filename}"
  
     thumb_to_download = None
@@ -342,7 +346,7 @@ async def doc(event):
         await progress_for_pyrogram(current, total, UPLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # FAST UPLOAD (Stable)
+        # FAST UPLOAD (Safe Wrapper)
         input_file = await fast_upload(
             client=upload_client,
             file_path=final_path,
