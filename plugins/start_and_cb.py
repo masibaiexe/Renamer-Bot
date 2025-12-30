@@ -22,8 +22,6 @@ from config import Config, rkn
 from helper.utils import humanbytes
 # Note: Ensure plugins/__init__.py exposes these variables correctly
 from plugins import __version__ as _bot_version_, __developer__, __database__, __library__, __language__, __programer__
-# Import the upload handler logic
-from plugins.file_rename import doc as upload_doc
 
 def format_uptime(seconds: int) -> str:
     days, remainder = divmod(seconds, 86400)
@@ -31,11 +29,9 @@ def format_uptime(seconds: int) -> str:
     minutes, seconds = divmod(remainder, 60)
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
-# Helper for Markdown mentions (Fixed for Mono font compatibility)
+# Helper for Markdown mentions (Telethon uses Markdown by default)
 def get_mention(user):
     name = user.first_name if user.first_name else "User"
-    # Escaping brackets to prevent breaking markdown
-    name = name.replace('[', '').replace(']', '')
     return f"[{name}](tg://user?id={user.id})"
 
 # Buttons
@@ -80,14 +76,11 @@ async def start(event):
 
     await digital_botz.add_user(client, event)
 
-    # 🧩 Send sticker (Fixed: Using send_file)
+    # 🧩 Send sticker (Fixed using client.send_file)
     try:
-        await client.send_file(
-            event.chat_id,
-            "CAACAgUAAxkBAAEP_ulpPdACjdOAuTuAu-zy-9jHfNuJmgACkBAAAv6qCFfnv7MXxQ1_IjYE"
-        )
-    except Exception as e:
-        print(f"Sticker Error: {e}")
+        await client.send_file(event.chat_id, "CAACAgUAAxkBAAEP_ulpPdACjdOAuTuAu-zy-9jHfNuJmgACkBAAAv6qCFfnv7MXxQ1_IjYE")
+    except:
+        pass
 
     # ⏳ Wait 2 seconds
     await asyncio.sleep(2)
@@ -99,7 +92,8 @@ async def start(event):
 
     mention = get_mention(user)
 
-    # 📝 Send start message (Removed parse_mode='html' to allow markdown)
+    # 📝 Send start message
+    # Removed parse_mode='html' so default Markdown works
     if Config.RKN_PIC:
         await client.send_file(
             event.chat_id,
@@ -141,7 +135,6 @@ async def myplan(event):
         else:
              time_left = "Expired"
 
-        # Fixed: Changed <code> to backticks ` for Markdown compatibility
         text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- `{user_id}`\n"
 
         is_upload_limit = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
@@ -157,7 +150,7 @@ async def myplan(event):
 
         text += f"⏳ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left}\n\n📅 ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
 
-        # Removed parse_mode='html'
+        # Removed parse_mode='html' to allow backticks for mono font
         await event.reply(text)
 
     else:
@@ -169,14 +162,13 @@ async def myplan(event):
             remain = int(limit) - int(used)
             type_plan = user_data.get('usertype', "Free")
 
-            # Fixed: Changed <code> to backticks
             text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- `{user_id}`\n📦 ᴘʟᴀɴ :- `{type_plan}`\n📈 ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n📊 ᴛᴏᴅᴀʏ ᴜsᴇᴅ :- `{humanbytes(used)}`\n🧮 ʀᴇᴍᴀɪɴ :- `{humanbytes(remain)}`\n📅 ᴇxᴘɪʀᴇᴅ ᴅᴀᴛᴇ :- ʟɪғᴇᴛɪᴍᴇ\n\n💎 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ, ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ 👇"
 
             await event.reply(text, buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]])
 
         else:
             try:
-                m = await event.reply(file="CAACAgIAAxkBAAIBTGVjQbHuhOiboQsDm35brLGyLQ28AAJ-GgACglXYSXgCrotQHjibHgQ")
+                m = await client.send_file(event.chat_id, "CAACAgIAAxkBAAIBTGVjQbHuhOiboQsDm35brLGyLQ28AAJ-GgACglXYSXgCrotQHjibHgQ")
             except:
                 m = None
                 
@@ -204,7 +196,6 @@ async def plans(event):
     free_trial_status = await digital_botz.get_free_trial_status(user.id)
     if not await digital_botz.has_premium_access(user.id):
         if not free_trial_status:
-            # Removed parse_mode='html'
             await event.reply(text=upgrade_msg, buttons=upgrade_trial_button, link_preview=False)
         else:
             await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False)
@@ -419,8 +410,7 @@ async def cb_handler(event):
             ]
         )
 
-    elif data.startswith("upload"):
-        await upload_doc(event)
+    # REMOVED the "upload" block to avoid conflict with file_rename.py
 
     elif data == "close":
         try:
@@ -430,10 +420,3 @@ async def cb_handler(event):
                 await reply_msg.delete()
         except:
             pass
-
-# (c) @RknDeveloperr
-# Rkn Developer 
-# Don't Remove Credit 😔
-# Telegram Channel @RknDeveloper & @Rkn_Botz
-# Developer @RknDeveloperr
-# Update Channel @Digital_Botz & @DigitalBotz_Support
