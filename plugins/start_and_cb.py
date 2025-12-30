@@ -30,7 +30,7 @@ def format_uptime(seconds: int) -> str:
     minutes, seconds = divmod(remainder, 60)
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
-# Helper for HTML mentions (Default)
+# Helper for HTML mentions (Used in start/help where HTML is active)
 def get_mention(user):
     name = user.first_name if user.first_name else "User"
     return f"<a href='tg://user?id={user.id}'>{escape(name)}</a>"
@@ -77,9 +77,9 @@ async def start(event):
 
     await digital_botz.add_user(client, event)
 
-    # 🧩 Send sticker using send_file (Fixed)
+    # 🧩 Send sticker (Fixed: Using event.reply with file arg)
     try:
-        await client.send_file(event.chat_id, "CAACAgUAAxkBAAEP_ulpPdACjdOAuTuAu-zy-9jHfNuJmgACkBAAAv6qCFfnv7MXxQ1_IjYE")
+        await event.reply(file="CAACAgUAAxkBAAEP_ulpPdACjdOAuTuAu-zy-9jHfNuJmgACkBAAAv6qCFfnv7MXxQ1_IjYE")
     except:
         pass
 
@@ -93,7 +93,7 @@ async def start(event):
 
     mention = get_mention(user)
 
-    # 📝 Send start message (HTML required for start txt)
+    # 📝 Send start message (HTML enabled for config text)
     if Config.RKN_PIC:
         await client.send_file(
             event.chat_id,
@@ -103,6 +103,7 @@ async def start(event):
             parse_mode='html'
         )
     else:
+        # Fixed: Removed text= keyword
         await event.reply(
             rkn.START_TXT.format(mention),
             buttons=start_button,
@@ -122,10 +123,11 @@ async def myplan(event):
     user_id = event.sender_id
     user = await event.get_sender()
     
-    # Switch to Markdown mention for this function ONLY
-    # because we need to remove HTML parse mode for backticks to work
+    # Manually format Markdown mention for this function (No HTML here)
     name = user.first_name if user.first_name else "User"
-    mention = f"[{name}](tg://user?id={user.id})"
+    # Escape brackets in name to avoid breaking markdown
+    safe_name = name.replace("[", "").replace("]", "")
+    mention = f"[{safe_name}](tg://user?id={user_id})"
     
     if await digital_botz.has_premium_access(user_id):
         data = await digital_botz.get_user(user_id)
@@ -156,7 +158,8 @@ async def myplan(event):
 
         text += f"⏳ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left}\n\n📅 ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
 
-        # Removed parse_mode='html' here to allow backticks (mono font)
+        # Fixed: Removed parse_mode='html' so backticks work (Mono font)
+        # Fixed: Passed text positionally
         await event.reply(text)
 
     else:
@@ -170,12 +173,13 @@ async def myplan(event):
 
             text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- `{user_id}`\n📦 ᴘʟᴀɴ :- `{type_plan}`\n📈 ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n📊 ᴛᴏᴅᴀʏ ᴜsᴇᴅ :- `{humanbytes(used)}`\n🧮 ʀᴇᴍᴀɪɴ :- `{humanbytes(remain)}`\n📅 ᴇxᴘɪʀᴇᴅ ᴅᴀᴛᴇ :- ʟɪғᴇᴛɪᴍᴇ\n\n💎 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ, ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ 👇"
 
-            # Removed parse_mode='html' here too
+            # Fixed: Passed text positionally
             await event.reply(text, buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]])
 
         else:
             try:
-                m = await client.send_file(event.chat_id, "CAACAgIAAxkBAAIBTGVjQbHuhOiboQsDm35brLGyLQ28AAJ-GgACglXYSXgCrotQHjibHgQ")
+                # Fixed: sticker sending logic
+                m = await event.reply(file="CAACAgIAAxkBAAIBTGVjQbHuhOiboQsDm35brLGyLQ28AAJ-GgACglXYSXgCrotQHjibHgQ")
             except:
                 m = None
                 
@@ -195,7 +199,7 @@ async def plans(event):
 
     client = event.client
     user = await event.get_sender()
-    mention = get_mention(user) # Use HTML mention here
+    mention = get_mention(user) # Use HTML mention here as plans usually use HTML
     
     is_upload_limit = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
     upgrade_msg = rkn.UPGRADE_PLAN.format(mention) if is_upload_limit else rkn.UPGRADE_PREMIUM.format(mention)
@@ -203,12 +207,12 @@ async def plans(event):
     free_trial_status = await digital_botz.get_free_trial_status(user.id)
     if not await digital_botz.has_premium_access(user.id):
         if not free_trial_status:
-            # Keep HTML for plans (formatting usually uses bold/italics)
-            await event.reply(text=upgrade_msg, buttons=upgrade_trial_button, link_preview=False, parse_mode='html')
+            # FIXED: Removed 'text=' keyword. Passed upgrade_msg positionally.
+            await event.reply(upgrade_msg, buttons=upgrade_trial_button, link_preview=False, parse_mode='html')
         else:
-            await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
+            await event.reply(upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
     else:
-        await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
+        await event.reply(upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
 
 
 # ---------------------------------------------------------------------------------
@@ -236,17 +240,19 @@ async def cb_handler(event):
         is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
         if is_premium_mode:
             start_button.append([Button.inline('💸 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ 💸', data='upgrade')])
-            
+        
+        # Fixed: Removed text= keyword
         await event.edit(
-            text=rkn.START_TXT.format(mention),
+            rkn.START_TXT.format(mention),
             link_preview=False,
             buttons=start_button,
             parse_mode='html'
         )
 
     elif data == "help":
+        # Fixed: Removed text= keyword
         await event.edit(
-            text=rkn.HELP_TXT,
+            rkn.HELP_TXT,
             link_preview=False,
             buttons=[
                 [
@@ -288,8 +294,9 @@ async def cb_handler(event):
         bot_user = await client.get_me()
         bot_mention = get_mention(bot_user)
         
+        # Fixed: Removed text= keyword
         await event.edit(
-            text=rkn.ABOUT_TXT.format(
+            rkn.ABOUT_TXT.format(
                 bot_mention, 
                 __developer__, __programer__, __library__, __language__, __database__, _bot_version_
             ),
@@ -309,11 +316,11 @@ async def cb_handler(event):
         free_trial_status = await digital_botz.get_free_trial_status(event.sender_id)
         if not await digital_botz.has_premium_access(event.sender_id):
             if not free_trial_status:
-                await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_trial_button, parse_mode='html')
+                await event.edit(upgrade_msg, link_preview=False, buttons=upgrade_trial_button, parse_mode='html')
             else:
-                await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_button, parse_mode='html')
+                await event.edit(upgrade_msg, link_preview=False, buttons=upgrade_button, parse_mode='html')
         else:
-            await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_button, parse_mode='html')
+            await event.edit(upgrade_msg, link_preview=False, buttons=upgrade_button, parse_mode='html')
 
     elif data == "give_trial":
         is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
@@ -331,7 +338,7 @@ async def cb_handler(event):
 
     elif data == "thumbnail":
         await event.edit(
-            text=rkn.THUMBNAIL, 
+            rkn.THUMBNAIL, 
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
             parse_mode='html'
@@ -339,7 +346,7 @@ async def cb_handler(event):
 
     elif data == "caption":
         await event.edit(
-            text=rkn.CAPTION, 
+            rkn.CAPTION, 
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
             parse_mode='html'
@@ -347,7 +354,7 @@ async def cb_handler(event):
 
     elif data == "custom_file_name":
         await event.edit(
-            text=rkn.CUSTOM_FILE_NAME, 
+            rkn.CUSTOM_FILE_NAME, 
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
             parse_mode='html'
@@ -355,7 +362,7 @@ async def cb_handler(event):
 
     elif data == "digital_meta_data":
         await event.edit(
-            text=rkn.DIGITAL_METADATA, 
+            rkn.DIGITAL_METADATA, 
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
             parse_mode='html'
@@ -376,7 +383,7 @@ async def cb_handler(event):
         recv = humanbytes(psutil.net_io_counters().bytes_recv)
         
         await event.edit(
-            text=rkn.BOT_STATUS.format(uptime, total_users, total_premium_users, sent, recv),
+            rkn.BOT_STATUS.format(uptime, total_users, total_premium_users, sent, recv),
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
             parse_mode='html'
@@ -397,20 +404,33 @@ async def cb_handler(event):
         disk_usage = psutil.disk_usage('/').percent
         
         await event.edit(
-            text=rkn.LIVE_STATUS.format(uptime, cpu_usage, ram_usage, total, used, disk_usage, free, sent, recv),
+            rkn.LIVE_STATUS.format(uptime, cpu_usage, ram_usage, total, used, disk_usage, free, sent, recv),
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
-            # Removed parse_mode here to allow default handling
+            parse_mode='html'
         )
 
     elif data == "source_code":
         await event.edit(
-            text=rkn.DEV_TXT,
+            rkn.DEV_TXT,
             link_preview=False,
             buttons=[
-                [Button.url("💞 Mᴀɪɴ Sᴏᴜʀᴄᴇ 💞", url="https://github.com/DigitalBotz/Digital-Rename-Bot")],
-                [Button.url("🍴 Fᴏʀᴋᴇᴅ Sᴏᴜʀᴄᴇ 🍴", url="https://github.com/yudurov/Digital-Renamer-Bot")],
-                [Button.inline("🔒 Cʟᴏꜱᴇ", data="close"), Button.inline("◀️ Bᴀᴄᴋ", data="start")]
+                [
+                    Button.url(
+                        "💞 Mᴀɪɴ Sᴏᴜʀᴄᴇ 💞",
+                        url="https://github.com/DigitalBotz/Digital-Rename-Bot"
+                    )
+                ],
+                [
+                    Button.url(
+                        "🍴 Fᴏʀᴋᴇᴅ Sᴏᴜʀᴄᴇ 🍴",
+                        url="https://github.com/yudurov/Digital-Renamer-Bot"
+                    )
+                ],
+                [
+                    Button.inline("🔒 Cʟᴏꜱᴇ", data="close"),
+                    Button.inline("◀️ Bᴀᴄᴋ", data="start")
+                ]
             ],
             parse_mode='html'
         )
