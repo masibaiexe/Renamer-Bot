@@ -54,30 +54,47 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             ''.join(["▢" for _ in range(20 - math.floor(percentage / 5))])
         )
 
-        # Formatted Output
-        tmp = (
-            f"<b>{ud_type}</b>\n\n"
-            f"{progress_bar}\n\n"
-            f"<b>╭━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━━➣</b>\n"
-            f"<b>┃    🗂️ ᴄᴏᴍᴘʟᴇᴛᴇᴅ: {humanbytes(current)}</b>\n"
-            f"<b>┃    📦 ᴛᴏᴛᴀʟ ꜱɪᴢᴇ: {humanbytes(total)}</b>\n"
-            f"<b>┃    🔋 ꜱᴛᴀᴛᴜꜱ: {round(percentage, 2)}%</b>\n"
-            f"<b>┃    {speed_icon} ꜱᴘᴇᴇᴅ: {humanbytes(speed)}/s</b>\n"
-            f"<b>┃    ⏰ ᴇᴛᴀ: {estimated_total_time}</b>\n"
-            f"<b>╰━━━━━━━━━━━━━━━━➣</b>"
+        # Static footer (Option A)
+        footer = "╰━━━━━━━━━━━━━━━━➣"
+
+        # RESTORED: Exact original template structure
+        progress_template = f"""<b>
+╭━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━━➣
+
+┃    🗂️ ᴄᴏᴍᴘʟᴇᴛᴇᴅ: {{1}}
+
+┃    📦 ᴛᴏᴛᴀʟ ꜱɪᴢᴇ: {{2}}
+
+┃    🔋 ꜱᴛᴀᴛᴜꜱ: {{0}}%
+
+┃    {{3}} ꜱᴘᴇᴇᴅ: {{5}}/s
+
+┃    ⏰ ᴇᴛᴀ: {{4}}
+
+{footer}
+</b>"""
+
+        tmp = progress_bar + progress_template.format(
+            round(percentage, 2),
+            humanbytes(current),
+            humanbytes(total),
+            speed_icon,
+            estimated_total_time,
+            humanbytes(speed)
         )
 
         try:
-            # Telethon edit
+            # Telethon edit with parse_mode='html'
             await message.edit(
-                text=tmp,
+                text=f"{ud_type}\n\n{tmp}",
                 parse_mode='html',
                 buttons=[[Button.inline("✖️ 𝙲𝙰𝙽𝙲ᴇʟ ✖️", data="close")]]
             )
         except errors.MessageNotModifiedError:
             pass
         except Exception as e:
-            print(f"Progress Error: {e}")
+            # print(f"Progress Error: {e}")
+            pass
 
 
 def humanbytes(size):
@@ -118,15 +135,18 @@ async def send_log(b, u):
     if Config.LOG_CHANNEL:
         curr = datetime.datetime.now(pytz.timezone("Africa/Nairobi"))
         
-        # Telethon doesn't have .mention property, manual markdown
+        # Telethon doesn't have .mention, so we create Markdown links manually
         name = u.first_name if u.first_name else "User"
+        # Escape brackets in name to prevent markdown breakage
+        name = name.replace("[", "").replace("]", "")
         user_mention = f"[{name}](tg://user?id={u.id})"
         username = f"@{u.username}" if u.username else "None"
         
         # Bot mention
         try:
             bot_me = await b.get_me()
-            bot_mention = f"[{bot_me.first_name}](tg://user?id={bot_me.id})"
+            bot_name = bot_me.first_name.replace("[", "").replace("]", "")
+            bot_mention = f"[{bot_name}](tg://user?id={bot_me.id})"
         except:
             bot_mention = "Bot"
 
