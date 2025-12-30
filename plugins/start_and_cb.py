@@ -31,6 +31,7 @@ License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICEN
 
 # extra imports
 import random, asyncio, datetime, pytz, time, psutil, shutil
+from html import escape
 
 # Telethon imports
 from telethon import events, Button, functions, types
@@ -50,10 +51,10 @@ def format_uptime(seconds: int) -> str:
     minutes, seconds = divmod(remainder, 60)
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
-# Helper for mentions
+# Helper for HTML mentions
 def get_mention(user):
     name = user.first_name if user.first_name else "User"
-    return f"[{name}](tg://user?id={user.id})"
+    return f"<a href='tg://user?id={user.id}'>{escape(name)}</a>"
 
 # Buttons
 upgrade_button = [
@@ -114,18 +115,21 @@ async def start(event):
     mention = get_mention(user)
 
     # 📝 Send start message
+    # Added parse_mode='html'
     if Config.RKN_PIC:
         await client.send_file(
             event.chat_id,
             Config.RKN_PIC,
             caption=rkn.START_TXT.format(mention),
-            buttons=start_button
+            buttons=start_button,
+            parse_mode='html'
         )
     else:
         await event.reply(
             rkn.START_TXT.format(mention),
             buttons=start_button,
-            link_preview=False
+            link_preview=False,
+            parse_mode='html'
         )
 
 
@@ -170,7 +174,7 @@ async def myplan(event):
 
         text += f"⏳ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left}\n\n📅 ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
 
-        await event.reply(text)
+        await event.reply(text, parse_mode='html')
 
     else:
         is_upload_limit = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
@@ -183,7 +187,7 @@ async def myplan(event):
 
             text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- <code>{user_id}</code>\n📦 ᴘʟᴀɴ :- `{type_plan}`\n📈 ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n📊 ᴛᴏᴅᴀʏ ᴜsᴇᴅ :- `{humanbytes(used)}`\n🧮 ʀᴇᴍᴀɪɴ :- `{humanbytes(remain)}`\n📅 ᴇxᴘɪʀᴇᴅ ᴅᴀᴛᴇ :- ʟɪғᴇᴛɪᴍᴇ\n\n💎 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ, ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ 👇"
 
-            await event.reply(text, buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]])
+            await event.reply(text, buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]], parse_mode='html')
 
         else:
             try:
@@ -193,7 +197,8 @@ async def myplan(event):
                 
             await event.reply(
                 f"ʜᴇʏ {mention},\n\nʏᴏᴜ ᴅᴏ ɴᴏᴛ ʜᴀᴠᴇ ᴀɴ ᴀᴄᴛɪᴠᴇ ᴘʀᴇᴍɪᴜᴍ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ. ᴛᴏ ᴘᴜʀᴄʜᴀꜱᴇ ᴘʀᴇᴍɪᴜᴍ, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ. 👇",
-                buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]]
+                buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]],
+                parse_mode='html'
             )			 
             await asyncio.sleep(2)
             if m:
@@ -215,11 +220,11 @@ async def plans(event):
     free_trial_status = await digital_botz.get_free_trial_status(user.id)
     if not await digital_botz.has_premium_access(user.id):
         if not free_trial_status:
-            await event.reply(text=upgrade_msg, buttons=upgrade_trial_button, link_preview=False)
+            await event.reply(text=upgrade_msg, buttons=upgrade_trial_button, link_preview=False, parse_mode='html')
         else:
-            await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False)
+            await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
     else:
-        await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False)
+        await event.reply(text=upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
 
 
 # ---------------------------------------------------------------------------------
@@ -251,7 +256,8 @@ async def cb_handler(event):
         await event.edit(
             text=rkn.START_TXT.format(mention),
             link_preview=False,
-            buttons=start_button
+            buttons=start_button,
+            parse_mode='html'
         )
 
     elif data == "help":
@@ -273,7 +279,8 @@ async def cb_handler(event):
                 [
                     Button.inline("Bᴀᴄᴋ", data="start")
                 ]
-            ]
+            ],
+            parse_mode='html'
         ) 
 
     elif data == "about":
@@ -296,14 +303,16 @@ async def cb_handler(event):
             
         # FIX: Fetch bot user explicitly to get name and id
         bot_user = await client.get_me()
+        bot_mention = get_mention(bot_user)
         
         await event.edit(
             text=rkn.ABOUT_TXT.format(
-                f"[{bot_user.first_name}](tg://user?id={bot_user.id})", 
+                bot_mention, 
                 __developer__, __programer__, __library__, __language__, __database__, _bot_version_
             ),
             link_preview=False,
-            buttons=about_button
+            buttons=about_button,
+            parse_mode='html'
         )
 
     elif data == "upgrade":
@@ -317,11 +326,11 @@ async def cb_handler(event):
         free_trial_status = await digital_botz.get_free_trial_status(event.sender_id)
         if not await digital_botz.has_premium_access(event.sender_id):
             if not free_trial_status:
-                await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_trial_button)
+                await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_trial_button, parse_mode='html')
             else:
-                await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_button)
+                await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_button, parse_mode='html')
         else:
-            await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_button)
+            await event.edit(text=upgrade_msg, link_preview=False, buttons=upgrade_button, parse_mode='html')
 
     elif data == "give_trial":
         is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
@@ -335,34 +344,38 @@ async def cb_handler(event):
             new_text = "**ʏᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ ᴛʀɪᴀʟ ʜᴀs ʙᴇᴇɴ ᴀᴅᴅᴇᴅ ғᴏʀ 𝟷𝟸 ʜᴏᴜʀs...**"
         else:
             new_text = "**🤣 ʏᴏᴜ ᴀʟʀᴇᴀᴅʏ ᴜsᴇᴅ ғʀᴇᴇ...**"
-        await client.send_message(event.sender_id, message=new_text)
+        await client.send_message(event.sender_id, message=new_text, parse_mode='html')
 
     elif data == "thumbnail":
         await event.edit(
             text=rkn.THUMBNAIL, 
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]]
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
+            parse_mode='html'
         )
 
     elif data == "caption":
         await event.edit(
             text=rkn.CAPTION, 
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]]
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
+            parse_mode='html'
         )
 
     elif data == "custom_file_name":
         await event.edit(
             text=rkn.CUSTOM_FILE_NAME, 
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]]
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
+            parse_mode='html'
         )
 
     elif data == "digital_meta_data":
         await event.edit(
             text=rkn.DIGITAL_METADATA, 
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]]
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="help")]],
+            parse_mode='html'
         )
 
     elif data == "bot_status":
@@ -385,7 +398,8 @@ async def cb_handler(event):
         await event.edit(
             text=rkn.BOT_STATUS.format(uptime, total_users, total_premium_users, sent, recv),
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]]
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
+            parse_mode='html'
         )
 
     elif data == "live_status":
@@ -405,7 +419,8 @@ async def cb_handler(event):
         await event.edit(
             text=rkn.LIVE_STATUS.format(uptime, cpu_usage, ram_usage, total, used, disk_usage, free, sent, recv),
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]]
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
+            parse_mode='html'
         )
 
     elif data == "source_code":
@@ -431,7 +446,8 @@ async def cb_handler(event):
                     Button.inline("🔒 Cʟᴏꜱᴇ", data="close"),
                     Button.inline("◀️ Bᴀᴄᴋ", data="start")
                 ]
-            ]
+            ],
+            parse_mode='html'
         )
 
     elif data.startswith("upload"):
