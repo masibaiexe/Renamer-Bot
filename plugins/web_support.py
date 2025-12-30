@@ -46,13 +46,20 @@ os.makedirs('templates', exist_ok=True)
 
 async def get_status():
     # Calculate your bot status metrics
+    # Telethon/Pyrogram agnostic - relies on DB wrapper
     total_users = await digital_botz.total_users_count()
-    if Config.PREMIUM_MODE:
+    
+    # Check Config (set in config.py)
+    if getattr(Config, 'PREMIUM_MODE', False):
         total_premium_users = await digital_botz.total_premium_users_count()
     else:
         total_premium_users = "Disabled ✅"
     
-    currentTime = time.strftime("%Hh%Mm%Ss", time.gmtime(time.time() - Config.BOT_UPTIME))    
+    # Calculate Uptime
+    uptime_seconds = time.time() - Config.BOT_UPTIME
+    currentTime = time.strftime("%Hh%Mm%Ss", time.gmtime(uptime_seconds))    
+    
+    # System Stats
     total, used, free = shutil.disk_usage(".")
     total = humanbytes(total)
     used = humanbytes(used)
@@ -83,32 +90,36 @@ DigitalRenameBot = web.RouteTableDef()
 
 @DigitalRenameBot.get("/", allow_head=True)
 async def root_route_handler(request):
-    # Get real-time status data - CORRECTED: use get_status() instead of get_bot_status() and get_live_status()
+    # Get real-time status data
     status_data = await get_status()
     
     # Render template with actual data
-    with open('templates/welcome.html', 'r', encoding='utf-8') as f:
-        template_content = f.read()
+    # Ensure templates/welcome.html exists in your directory
+    try:
+        with open('templates/welcome.html', 'r', encoding='utf-8') as f:
+            template_content = f.read()
+    except FileNotFoundError:
+        return web.Response(text="Welcome to Digital Rename Bot (Template not found)", content_type='text/plain')
     
-    # Replace placeholders with actual data - CORRECTED: use status_data dictionary
+    # Replace placeholders with actual data
     html_content = template_content
-    html_content = html_content.replace('{{bot_status}}', status_data['status'])
-    html_content = html_content.replace('{{bot_version}}', status_data['version'])
+    html_content = html_content.replace('{{bot_status}}', str(status_data['status']))
+    html_content = html_content.replace('{{bot_version}}', str(status_data['version']))
     html_content = html_content.replace('{{total_users}}', str(status_data['total_users']))
     html_content = html_content.replace('{{premium_users}}', str(status_data['total_premium_users']))
-    html_content = html_content.replace('{{bot_uptime}}', status_data['uptime'])
-    html_content = html_content.replace('{{data_sent}}', status_data['sent'])
-    html_content = html_content.replace('{{data_recv}}', status_data['recv'])
+    html_content = html_content.replace('{{bot_uptime}}', str(status_data['uptime']))
+    html_content = html_content.replace('{{data_sent}}', str(status_data['sent']))
+    html_content = html_content.replace('{{data_recv}}', str(status_data['recv']))
     
-    html_content = html_content.replace('{{system_uptime}}', status_data['uptime'])
+    html_content = html_content.replace('{{system_uptime}}', str(status_data['uptime']))
     html_content = html_content.replace('{{cpu_usage}}', str(status_data['cpu_usage']))
     html_content = html_content.replace('{{ram_usage}}', str(status_data['ram_usage']))
     html_content = html_content.replace('{{disk_usage}}', str(status_data['disk_usage']))
-    html_content = html_content.replace('{{total_disk}}', status_data['total_disk'])
-    html_content = html_content.replace('{{used_disk}}', status_data['used_disk'])
-    html_content = html_content.replace('{{free_disk}}', status_data['free_disk'])
-    html_content = html_content.replace('{{system_sent}}', status_data['sent'])
-    html_content = html_content.replace('{{system_recv}}', status_data['recv'])
+    html_content = html_content.replace('{{total_disk}}', str(status_data['total_disk']))
+    html_content = html_content.replace('{{used_disk}}', str(status_data['used_disk']))
+    html_content = html_content.replace('{{free_disk}}', str(status_data['free_disk']))
+    html_content = html_content.replace('{{system_sent}}', str(status_data['sent']))
+    html_content = html_content.replace('{{system_recv}}', str(status_data['recv']))
     
     # Add current timestamp for cache busting
     html_content = html_content.replace('{{timestamp}}', str(int(time.time())))
