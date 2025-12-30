@@ -22,55 +22,80 @@ Repo Link : https://github.com/DigitalBotz/Digital-Rename-Bot
 License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICENSE
 """
 
-# pyrogram imports
-from pyrogram import Client, filters, enums 
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.errors import UserNotParticipant
+# Telethon imports
+from telethon import events, Button, errors
+from telethon.tl.types import ChannelParticipantBanned, ChannelParticipantLeft
 
 # extra imports
 from config import Config
 from helper.database import digital_botz
 import datetime 
 
-async def not_subscribed(_, client, message):
-    await digital_botz.add_user(client, message)
+async def not_subscribed(client, event):
+    # Ensure user is in DB
+    # Note: Ensure digital_botz.add_user can handle Telethon events or (client, user_id)
+    await digital_botz.add_user(client, event)
+    
     if not Config.FORCE_SUB:
         return False
 
     try:
-        user = await client.get_chat_member(Config.FORCE_SUB, message.from_user.id)
-        return user.status not in [enums.ChatMemberStatus.MEMBER, enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.OWNER]
-    except UserNotParticipant:
+        # Telethon: get_participant raises UserNotParticipantError if not found
+        user_id = event.sender_id
+        participant = await client.get_participant(Config.FORCE_SUB, user_id)
+        
+        # specific check for Banned or Left explicitly returned
+        if isinstance(participant, (ChannelParticipantBanned, ChannelParticipantLeft)):
+            return True
+            
+        return False
+        
+    except errors.UserNotParticipantError:
         return True
     except Exception as e:
         print(f"Error checking subscription: {e}")
+        # If error (e.g. Bot not admin in Force Sub channel), we usually allow to proceed to avoid blocking users
         return False
 
-async def handle_banned_user_status(bot, message):
-    await digital_botz.add_user(bot, message) 
-    user_id = message.from_user.id
+async def handle_banned_user_status(client, event):
+    await digital_botz.add_user(client, event) 
+    user_id = event.sender_id
     ban_status = await digital_botz.get_ban_status(user_id)
+    
     if ban_status.get("is_banned", False):
         if ( datetime.date.today() - datetime.date.fromisoformat(ban_status["banned_on"])
         ).days > ban_status["ban_duration"]:
             await digital_botz.remove_ban(user_id)
         else:
-            return await message.reply_text("Sorry Sir, 😔 You are Banned!.. Please Contact - @xspes") 
-    await message.continue_propagation()
+            await event.reply("Sorry Sir, 😔 You are Banned!.. Please Contact - @xspes")
+            # Telethon way to stop other handlers from processing this event
+            raise events.StopPropagation
     
-async def forces_sub(client, message):
-    buttons = [[InlineKeyboardButton(text="📢 Join Update Channel 📢", url=f"https://t.me/{Config.FORCE_SUB}")]] 
+    # In Telethon, we don't need continue_propagation() explicitly 
+    # unless we stopped it elsewhere. If we don't raise StopPropagation, it continues.
+    
+async def forces_sub(client, event):
+    # Telethon Button format
+    buttons = [[Button.url("📢 Join Update Channel 📢", url=f"https://t.me/{Config.FORCE_SUB}")]] 
     text = "**🌟 Welcome! To continue, please join our updates channel for the latest news and features. Thank you for your support! 💙**"
 
     try:
-        user = await client.get_chat_member(Config.FORCE_SUB, message.from_user.id)
-        if user.status == enums.ChatMemberStatus.BANNED:
-            return await message.reply_text("Sᴏʀʀy Yᴏᴜ'ʀᴇ Bᴀɴɴᴇᴅ Tᴏ Uꜱᴇ Mᴇ")
-        elif user.status not in [enums.ChatMemberStatus.MEMBER, enums.ChatMemberStatus.ADMINISTRATOR]:
-            return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
-    except UserNotParticipant:
-        return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
-    return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
+        user_id = event.sender_id
+        participant = await client.get_participant(Config.FORCE_SUB, user_id)
+        
+        if isinstance(participant, ChannelParticipantBanned):
+            return await event.reply("Sᴏʀʀy Yᴏᴜ'ʀᴇ Bᴀɴɴᴇᴅ Tᴏ Uꜱᴇ Mᴇ")
+        
+        # If we got participant object and they aren't banned, they are likely a member.
+        # But if this function was called, it usually means not_subscribed returned True.
+        # Double check logic: if we are here, we ask them to join.
+        
+    except errors.UserNotParticipantError:
+        pass # Expected, proceed to send join message
+    except Exception as e:
+        pass
+
+    return await event.reply(text=text, buttons=buttons)
     
 # (c) @RknDeveloperr
 # Rkn Developer 
