@@ -8,25 +8,6 @@
 """
 Apache License 2.0
 Copyright (c) 2022 @Digital_Botz
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Telegram Link : https://t.me/Digital_Botz 
-Repo Link : https://github.com/DigitalBotz/Digital-Rename-Bot
-License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICENSE
 """
 
 # Telethon imports
@@ -236,7 +217,7 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # FIX: Removed `text=` keyword argument, passed string positionally
+        # FIX: Send text positionally, not as keyword
         await event.reply(
             f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
             reply_to=file_msg.id,
@@ -347,7 +328,6 @@ async def doc(event):
              if is_premium_mode and is_upload_limit:
                  used_remove = int(used) - int(media.size)
                  await digital_botz.set_used_limit(user_id, used_remove)
-             # FIX: Removed text=
              return await rkn_processing.edit(
                  f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
              )             
@@ -436,12 +416,3 @@ async def doc(event):
 
     await remove_path(ph_path, file_path, dl_path, metadata_path)
     return await rkn_processing.edit("🎈 Uploaded Successfully....")
-    
-#@RknDeveloper
-#✅ Team-RknDeveloper
-# Rkn Developer 
-# Don't Remove Credit 😔
-# Telegram Channel @RknDeveloper & @Rkn_Botz
-# Developer @RknDeveloperr
-# Special Thanks To @ReshamOwner
-# Update Channel @Digital_Botz & @DigitalBotz_Support
