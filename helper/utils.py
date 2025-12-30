@@ -99,7 +99,8 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             humanbytes(total),
             speed_icon,
             estimated_total_time,
-            humanbytes(speed)
+            humanbytes(speed),
+            parse_mode='html'
         )
 
         try:
