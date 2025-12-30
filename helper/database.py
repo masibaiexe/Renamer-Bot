@@ -69,7 +69,15 @@ class Database:
         )
 
     async def add_user(self, b, m):
-        u = m.from_user
+        # Telethon: m is the event or message
+        try:
+            u = await m.get_sender()
+        except:
+            return
+
+        if not u:
+            return
+
         if not await self.is_user_exist(u.id):
             user = self.new_user(u.id)
             await self.col.insert_one(user)            
@@ -207,7 +215,7 @@ class Database:
             await self.col.update_one(
                 {'_id': user_id}, 
                 {'$set': {
-                    'usertype': user_type,
+                    'usertype': type, # Fixed: was 'user_type' (undefined) in original
                     'uploadlimit': limit
                 }}
             )
@@ -244,6 +252,10 @@ class Database:
         if user_data:
             return user_data.get("has_free_trial", False)
         return False
+
+    # Alias for method name consistency if needed by other plugins
+    async def give_free_trail(self, user_id):
+        return await self.give_free_trial(user_id)
 
     async def give_free_trial(self, user_id):
         seconds = 720 * 60
