@@ -218,6 +218,7 @@ async def refunc(event):
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
         # Force reply to the FILE message to maintain context
+        # Using send_message with reply_to targets the correct message
         await client.send_message(
             event.chat_id,
             f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
@@ -349,7 +350,7 @@ async def doc(event):
     else:
          caption = f"**{new_filename}**"
  
-    # FIX: Correctly check for thumbs on the message object
+    # Correctly check for thumbs on the message object
     thumb_to_download = None
     
     if c_thumb:
@@ -415,10 +416,12 @@ async def doc(event):
             progress_callback=upload_progress
         )
         
-        if upload_client == bot:
-            await bot.send_message(user_id, file=uploaded_msg.media, caption=caption)
-        else:
-            await bot.send_message(user_id, file=uploaded_msg.media, caption=caption)
+        # FIX: Use send_file instead of send_message to avoid 'caption' error
+        await bot.send_file(
+            user_id,
+            file=uploaded_msg.media,
+            caption=caption
+        )
             
         await bot.delete_messages(Config.LOG_CHANNEL, uploaded_msg.id)
         
