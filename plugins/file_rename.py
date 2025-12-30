@@ -28,7 +28,7 @@ from hachoir.parser import createParser
 from helper.utils import progress_for_pyrogram, convert, humanbytes, add_prefix_suffix, remove_path
 from helper.database import digital_botz
 from helper.ffmpeg import change_metadata
-from helper.fast import fast_download, fast_upload # NEW IMPORT
+from helper.fast import fast_download, fast_upload
 from config import Config
 
 UPLOAD_TEXT = "📤 Uploading file..."
@@ -77,7 +77,7 @@ async def rename_start(event):
 
     FILE_TYPE_EMOJIS = {
         "audio": "🎵", "video": "🎬", "image": "🖼️",
-        "application": "📦", "text": "📄", "default": "📁"
+        "application": "📦", "text": "📄", "font": "🔤", "default": "📁"
     }
     EXTENSION_EMOJIS = {
         "zip": "🗜️", "rar": "📚", "7z": "🧳", "apk": "🤖", "exe": "💻", "mkv": "📽️", "mp4": "🎥"
@@ -162,13 +162,16 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # Removed ** from prompt to prevent extraction issues
-        await client.send_message(
-            event.chat_id,
-            f"Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ\n• Fɪʟᴇ Nᴀᴍᴇ :- `{new_name}`",
-            reply_to=file_msg.id,
-            buttons=buttons
-        )
+        # Safer send_message logic
+        try:
+            await client.send_message(
+                event.chat_id,
+                f"Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ\n• Fɪʟᴇ Nᴀᴍᴇ :- `{new_name}`",
+                reply_to=file_msg.id,
+                buttons=buttons
+            )
+        except Exception as e:
+            await event.reply(f"Error bringing buttons: {e}\nTry uploading again.")
 
 
 @Config.BOT.on(events.CallbackQuery(pattern="upload"))
@@ -227,18 +230,21 @@ async def doc(event):
         await progress_for_pyrogram(current, total, DOWNLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # FAST DOWNLOAD IMPLEMENTATION
+        # FAST DOWNLOAD
         dl_path = await fast_download(
             client=bot,
             msg=file_msg,
             file=file_path,
             progress_callback=progress_wrapper
         )
+        if not dl_path:
+            raise Exception("Download failed (Check Connection/DC)")
+            
     except Exception as e:
         if is_premium_mode and is_upload_limit:
             used_remove = int(used) - int(media.size)
             await digital_botz.set_used_limit(user_id, used_remove)
-        return await rkn_processing.edit(str(e))
+        return await rkn_processing.edit(f"Download Error: {e}")
 
     metadata_mode = await digital_botz.get_metadata_mode(user_id)
     if (metadata_mode):        
@@ -331,8 +337,7 @@ async def doc(event):
         await progress_for_pyrogram(current, total, UPLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # FAST UPLOAD IMPLEMENTATION
-        # 1. Upload the file chunks first
+        # FAST UPLOAD using Telethon Native Parallel
         input_file = await fast_upload(
             client=upload_client,
             file_path=final_path,
@@ -340,7 +345,6 @@ async def doc(event):
             name=new_filename
         )
         
-        # 2. Send the uploaded media
         uploaded_msg = await upload_client.send_file(
             Config.LOG_CHANNEL,
             file=input_file,
@@ -365,7 +369,7 @@ async def doc(event):
             used_remove = int(used) - int(media.size)
             await digital_botz.set_used_limit(user_id, used_remove)
         await remove_path(ph_path, file_path, dl_path, metadata_path)
-        return await rkn_processing.edit(f"Error: {e}")
+        return await rkn_processing.edit(f"Upload Error: {e}")
 
     await remove_path(ph_path, file_path, dl_path, metadata_path)
     return await rkn_processing.edit("🎈 Uploaded Successfully....", buttons=None)
