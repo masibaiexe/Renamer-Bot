@@ -11,11 +11,11 @@ Copyright (c) 2022 @Digital_Botz
 """
 
 # extra imports
-import random, asyncio, datetime, pytz, time, psutil, shutil
+import datetime, time, psutil, shutil
 from html import escape
 
 # Telethon imports
-from telethon import events, Button, functions, types
+from telethon import events, Button
 
 # bots imports
 from helper.database import digital_botz
@@ -30,19 +30,25 @@ def format_uptime(seconds: int) -> str:
     minutes, seconds = divmod(remainder, 60)
     return f"{days}d {hours}h {minutes}m {seconds}s"
 
-# Helper for HTML mentions (Used in start/help where HTML is active)
-def get_mention(user):
+# Helper to generate mentions based on mode
+def get_mention(user, mode="html"):
     name = user.first_name if user.first_name else "User"
-    return f"<a href='tg://user?id={user.id}'>{escape(name)}</a>"
+    if mode == "markdown":
+        # Escape brackets for markdown
+        safe_name = name.replace("[", "").replace("]", "")
+        return f"[{safe_name}](tg://user?id={user.id})"
+    else:
+        # Default HTML
+        return f"<a href='tg://user?id={user.id}'>{escape(name)}</a>"
 
-# Buttons
+# Buttons - Defined exactly as requested
 upgrade_button = [
-    [Button.url('buy premium ✓', url='tg://user?id=6318135266')],
+    [Button.user_profile(6318135266, text='buy premium ✓')],
     [Button.inline("Bᴀᴄᴋ", data="start")]
 ]
 
 upgrade_trial_button = [
-    [Button.url('buy premium ✓', url='tg://user?id=6318135266')],
+    [Button.user_profile(6318135266, text='buy premium ✓')],
     [
         Button.inline("ᴛʀɪᴀʟ - 𝟷𝟸 ʜᴏᴜʀs ✓", data="give_trial"),
         Button.inline("Bᴀᴄᴋ", data="start")
@@ -72,14 +78,15 @@ async def start(event):
     is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
     if is_premium_mode:
         start_button.append([
+            # Using standard upgrade button here, or change to user_profile if needed
             Button.inline('💸 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ 💸', data='upgrade')
         ])
 
     await digital_botz.add_user(client, event)
 
-    mention = get_mention(user)
+    # Use HTML mention for start message (Config text likely has HTML)
+    mention = get_mention(user, mode="html")
 
-    # 📝 Send start message (HTML enabled for config text)
     if Config.RKN_PIC:
         await client.send_file(
             event.chat_id,
@@ -108,26 +115,22 @@ async def myplan(event):
     user_id = event.sender_id
     user = await event.get_sender()
     
-    # Manually format Markdown mention for this function (No HTML here)
-    name = user.first_name if user.first_name else "User"
-    # Escape brackets in name to avoid breaking markdown
-    safe_name = name.replace("[", "").replace("]", "")
-    mention = f"[{safe_name}](tg://user?id={user_id})"
+    # Use Markdown mention here so we can use backticks for mono font elsewhere
+    mention = get_mention(user, mode="markdown")
     
     if await digital_botz.has_premium_access(user_id):
         data = await digital_botz.get_user(user_id)
         expiry_str_in_ist = data.get("expiry_time")
-        # Ensure timezone compatibility
         if expiry_str_in_ist.tzinfo is None:
              expiry_str_in_ist = expiry_str_in_ist.replace(tzinfo=datetime.timezone.utc)
         
-        # Simple now check
         now = datetime.datetime.now(datetime.timezone.utc)
         if expiry_str_in_ist > now:
              time_left = expiry_str_in_ist - now
         else:
              time_left = "Expired"
 
+        # Using Markdown backticks `...` for mono font
         text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- `{user_id}`\n"
 
         is_upload_limit = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
@@ -143,6 +146,7 @@ async def myplan(event):
 
         text += f"⏳ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left}\n\n📅 ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
 
+        # No parse_mode specified = Default Markdown
         await event.reply(text)
 
     else:
@@ -156,21 +160,14 @@ async def myplan(event):
 
             text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- `{user_id}`\n📦 ᴘʟᴀɴ :- `{type_plan}`\n📈 ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n📊 ᴛᴏᴅᴀʏ ᴜsᴇᴅ :- `{humanbytes(used)}`\n🧮 ʀᴇᴍᴀɪɴ :- `{humanbytes(remain)}`\n📅 ᴇxᴘɪʀᴇᴅ ᴅᴀᴛᴇ :- ʟɪғᴇᴛɪᴍᴇ\n\n💎 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ, ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ 👇"
 
+            # Button to upgrade
             await event.reply(text, buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]])
 
         else:
-            try:
-                m = await event.reply(file="CAACAgIAAxkBAAIBTGVjQbHuhOiboQsDm35brLGyLQ28AAJ-GgACglXYSXgCrotQHjibHgQ")
-            except:
-                m = None
-                
             await event.reply(
                 f"ʜᴇʏ {mention},\n\nʏᴏᴜ ᴅᴏ ɴᴏᴛ ʜᴀᴠᴇ ᴀɴ ᴀᴄᴛɪᴠᴇ ᴘʀᴇᴍɪᴜᴍ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ. ᴛᴏ ᴘᴜʀᴄʜᴀꜱᴇ ᴘʀᴇᴍɪᴜᴍ, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ. 👇",
                 buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]]
-            )			 
-            await asyncio.sleep(2)
-            if m:
-                await m.delete()
+            )
 
 @Config.BOT.on(events.NewMessage(pattern=r'^/plans', func=lambda e: e.is_private))
 async def plans(event):
@@ -180,7 +177,7 @@ async def plans(event):
 
     client = event.client
     user = await event.get_sender()
-    mention = get_mention(user) # Use HTML mention here as plans usually use HTML
+    mention = get_mention(user, mode="html") # Back to HTML for plans
     
     is_upload_limit = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
     upgrade_msg = rkn.UPGRADE_PLAN.format(mention) if is_upload_limit else rkn.UPGRADE_PREMIUM.format(mention)
@@ -204,7 +201,7 @@ async def cb_handler(event):
     client = event.client
     data = event.data.decode("utf-8")
     user = await event.get_sender()
-    mention = get_mention(user)
+    mention = get_mention(user, mode="html")
 
     if data == "start":
         start_button = [
@@ -270,7 +267,7 @@ async def cb_handler(event):
             about_button[-1].append(Button.inline("Bᴀᴄᴋ", data="start"))
             
         bot_user = await client.get_me()
-        bot_mention = get_mention(bot_user)
+        bot_mention = get_mention(bot_user, mode="html")
         
         await event.edit(
             rkn.ABOUT_TXT.format(
