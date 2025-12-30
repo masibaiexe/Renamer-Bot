@@ -162,7 +162,6 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # Safer send_message logic
         try:
             await client.send_message(
                 event.chat_id,
@@ -337,7 +336,7 @@ async def doc(event):
         await progress_for_pyrogram(current, total, UPLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # FAST UPLOAD using Telethon Native Parallel
+        # FAST UPLOAD
         input_file = await fast_upload(
             client=upload_client,
             file_path=final_path,
@@ -345,6 +344,7 @@ async def doc(event):
             name=new_filename
         )
         
+        # 1. Upload to Log Channel first (using Premium Client if needed)
         uploaded_msg = await upload_client.send_file(
             Config.LOG_CHANNEL,
             file=input_file,
@@ -355,9 +355,14 @@ async def doc(event):
             parse_mode='html'
         )
         
+        # 2. Get reference using Bot Client to ensure compatibility
+        # We fetch the message from the channel using the BOT client
+        msg_ref = await bot.get_messages(Config.LOG_CHANNEL, ids=uploaded_msg.id)
+        
+        # 3. Send to User (Copying media from the log channel message)
         await bot.send_file(
             user_id,
-            file=uploaded_msg.media,
+            file=msg_ref.media, # Use the media object from the bot's perspective
             caption=caption,
             parse_mode='html'
         )
