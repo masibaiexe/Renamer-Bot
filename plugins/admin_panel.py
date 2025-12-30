@@ -33,32 +33,48 @@ from helper.database import digital_botz
 from helper.utils import get_seconds, humanbytes
 import os, sys, time, asyncio, logging, datetime, pytz, traceback
 
-# pyrogram imports
-from pyrogram.types import Message
-from pyrogram import Client, filters
-from pyrogram.errors import FloodWait, InputUserDeactivated, UserIsBlocked, PeerIdInvalid
-
+# Telethon imports
+from telethon import events, errors, Button
+from telethon.tl.types import User
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
- 
-@Client.on_message(filters.command(["stats", "status"]) & filters.user(Config.ADMIN))
-async def get_stats(bot, message):
+
+# Helper to get user mention in Markdown
+def get_mention(user):
+    if isinstance(user, User):
+        name = user.first_name if user.first_name else "User"
+        return f"[{name}](tg://user?id={user.id})"
+    return f"[{user}](tg://user?id={user})"
+
+# Helper to check if user is admin
+def is_admin(user_id):
+    return user_id in Config.ADMIN
+
+@Config.BOT.on(events.NewMessage(pattern=r'^/(stats|status)$', from_users=Config.ADMIN))
+async def get_stats(event):
+    bot = event.client
     total_users = await digital_botz.total_users_count()
-    if bot.premium:
+    
+    # Access properties from the running bot instance or Config
+    is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
+    
+    if is_premium_mode:
         total_premium_users = await digital_botz.total_premium_users_count()
     else:
         total_premium_users = "Disabled ✅"
 
     # Detailed uptime: days, hours, minutes, seconds
-    uptime_seconds = int(time.time() - bot.uptime)
+    # Assuming bot.uptime was set in bot.py during startup
+    uptime_timestamp = getattr(bot, 'uptime', time.time())
+    uptime_seconds = int(time.time() - uptime_timestamp)
     days, remainder = divmod(uptime_seconds, 86400)
     hours, remainder = divmod(remainder, 3600)
     minutes, seconds = divmod(remainder, 60)
     uptime = f"{days}d {hours}h {minutes}m {seconds}s"
 
     start_t = time.time()
-    rkn = await message.reply('**ᴘʀᴏᴄᴇssɪɴɢ.....**')    
+    rkn = await event.reply('**ᴘʀᴏᴄᴇssɪɴɢ.....**')    
     end_t = time.time()
     time_taken_s = (end_t - start_t) * 1000
 
@@ -72,22 +88,30 @@ async def get_stats(bot, message):
 
 
 # bot logs process 
-@Client.on_message(filters.command('logs') & filters.user(Config.ADMIN))
-async def log_file(b, m):
+@Config.BOT.on(events.NewMessage(pattern=r'^/logs$', from_users=Config.ADMIN))
+async def log_file(event):
     try:
-        await m.reply_document('BotLog.txt')
+        await event.reply(file='BotLog.txt')
     except Exception as e:
-        await m.reply(str(e))
+        await event.reply(str(e))
 
 
-@Client.on_message(filters.command(["addpremium", "add_premium"]) & filters.user(Config.ADMIN))
-async def add_premium(client, message):
-    if not client.premium:
-        return await message.reply_text("premium mode disabled ✅")
+@Config.BOT.on(events.NewMessage(pattern=r'^/(addpremium|add_premium)', from_users=Config.ADMIN))
+async def add_premium(event):
+    client = event.client
+    
+    # Mimic Pyrogram's message.command
+    command_args = event.text.split()
+    
+    is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
+    upload_limit_mode = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
+
+    if not is_premium_mode:
+        return await event.reply("premium mode disabled ✅")
      
-    if client.uploadlimit:
-        if len(message.command) < 4:
-            return await message.reply_text(
+    if upload_limit_mode:
+        if len(command_args) < 4:
+            return await event.reply(
                 "📜 **Usage:** `/addpremium user_id Plan_Type time`\n\n"
                 "🔹 **Plan_Type:** `Pro`, `UltraPro`\n"
                 "⏱️ **Time Format:**\n"
@@ -96,22 +120,25 @@ async def add_premium(client, message):
                 "• `1 day` → days\n"
                 "• `1 month` → months\n"
                 "• `1 year` → year\n\n"
-                "📃 **Example:** `/addpremium 6318135266 Pro 1 month`",
-                quote=True
+                "📃 **Example:** `/addpremium 6318135266 Pro 1 month`"
             )
 
-        user_id = int(message.command[1])
-        plan_type = message.command[2]
+        user_id = int(command_args[1])
+        plan_type = command_args[2]
 
         if plan_type not in ["Pro", "UltraPro"]:
-            return await message.reply_text("🧩 Invalid Plan Type. Please use '`Pro`' or '`UltraPro`' ", quote=True)
+            return await event.reply("🧩 Invalid Plan Type. Please use '`Pro`' or '`UltraPro`' ")
 
-        time_string = " ".join(message.command[3:])
+        time_string = " ".join(command_args[3:])
 
         time_zone = datetime.datetime.now(pytz.timezone("Africa/Nairobi"))
         current_time = time_zone.strftime("%d-%m-%Y\n⏱️ ᴊᴏɪɴɪɴɢ ᴛɪᴍᴇ : %I:%M:%S %p")
 
-        user = await client.get_users(user_id)
+        try:
+            user = await client.get_entity(user_id)
+            user_mention = get_mention(user)
+        except:
+            user_mention = f"User({user_id})"
 
         if plan_type == "Pro":
             limit = 107374182400
@@ -122,9 +149,8 @@ async def add_premium(client, message):
 
         seconds = await get_seconds(time_string)
         if seconds <= 0:
-            return await message.reply_text(
-                "⏰ Invalid time format. Please use `/addpremium user_id 1 year 1 month 1 day 1 hour 1 min`",
-                quote=True
+            return await event.reply(
+                "⏰ Invalid time format. Please use `/addpremium user_id 1 year 1 month 1 day 1 hour 1 min`"
             )
 
         expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
@@ -140,37 +166,39 @@ async def add_premium(client, message):
             pytz.timezone("Africa/Nairobi")
         ).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")
 
-        await message.reply_text(
+        await event.reply(
             f"ᴘʀᴇᴍɪᴜᴍ ᴀᴅᴅᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ✅\n\n"
-            f"👤 ᴜꜱᴇʀ : {user.mention}\n"
+            f"👤 ᴜꜱᴇʀ : {user_mention}\n"
             f"⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n"
             f"ᴘʟᴀɴ :- `{type}`\n"
             f"ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n"
             f"⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time_string}</code>\n\n"
             f"⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n"
             f"⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}",
-            quote=True,
-            disable_web_page_preview=True
+            link_preview=False
         )
 
-        await client.send_message(
-            chat_id=user_id,
-            text=(
-                f"👋 ʜᴇʏ {user.mention},\n"
-                f"ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴘᴜʀᴄʜᴀꜱɪɴɢ ᴘʀᴇᴍɪᴜᴍ.\n"
-                f"ᴇɴᴊᴏʏ !! ✨🎉\n\n"
-                f"⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time_string}</code>\n"
-                f"ᴘʟᴀɴ :- `{type}`\n"
-                f"ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n"
-                f"⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n"
-                f"⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
-            ),
-            disable_web_page_preview=True              
-        )    
+        try:
+            await client.send_message(
+                user_id,
+                message=(
+                    f"👋 ʜᴇʏ {user_mention},\n"
+                    f"ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴘᴜʀᴄʜᴀꜱɪɴɢ ᴘʀᴇᴍɪᴜᴍ.\n"
+                    f"ᴇɴᴊᴏʏ !! ✨🎉\n\n"
+                    f"⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time_string}</code>\n"
+                    f"ᴘʟᴀɴ :- `{type}`\n"
+                    f"ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n"
+                    f"⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n"
+                    f"⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
+                ),
+                link_preview=False              
+            )
+        except:
+            pass
 
     else:
-        if len(message.command) < 3:
-            return await message.reply_text(
+        if len(command_args) < 3:
+            return await event.reply(
                 "📜 **Usage:** `/addpremium user_id Plan_Type time`\n\n"
                 "🔹 **Plan_Type:** `Pro`, `UltraPro`\n"
                 "⏱️ **Time Format:**\n"
@@ -179,22 +207,25 @@ async def add_premium(client, message):
                 "• `1 day` → days\n"
                 "• `1 month` → months\n"
                 "• `1 year` → year\n\n"
-                "📃 **Example:** `/addpremium 6318135266 Pro 1 month`",
-                quote=True
+                "📃 **Example:** `/addpremium 6318135266 Pro 1 month`"
             )
 
-        user_id = int(message.command[1])
-        time_string = " ".join(message.command[2:])
+        user_id = int(command_args[1])
+        time_string = " ".join(command_args[2:])
 
         time_zone = datetime.datetime.now(pytz.timezone("Africa/Nairobi"))
         current_time = time_zone.strftime("%d-%m-%Y\n⏱️ ᴊᴏɪɴɪɴɢ ᴛɪᴍᴇ : %I:%M:%S %p")
 
-        user = await client.get_users(user_id)        
+        try:
+            user = await client.get_entity(user_id)
+            user_mention = get_mention(user)
+        except:
+            user_mention = f"User({user_id})"
+
         seconds = await get_seconds(time_string)
         if seconds <= 0:
-            return await message.reply_text(
-                "Invalid time format. Please use `/addpremium user_id 1 year 1 month 1 day 1 min 10 s`",
-                quote=True
+            return await event.reply(
+                "Invalid time format. Please use `/addpremium user_id 1 year 1 month 1 day 1 min 10 s`"
             )
 
         expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
@@ -206,71 +237,88 @@ async def add_premium(client, message):
             pytz.timezone("Africa/Nairobi")
         ).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")
 
-        await message.reply_text(
+        await event.reply(
             f"ᴘʀᴇᴍɪᴜᴍ ᴀᴅᴅᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ✅\n\n"
-            f"👤 ᴜꜱᴇʀ : {user.mention}\n"
+            f"👤 ᴜꜱᴇʀ : {user_mention}\n"
             f"⚡ ᴜꜱᴇʀ ɪᴅ : <code>{user_id}</code>\n"
             f"⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time_string}</code>\n\n"
             f"⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n"
             f"⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}",
-            quote=True,
-            disable_web_page_preview=True
+            link_preview=False
         )
 
-        await client.send_message(
-            chat_id=user_id,
-            text=(
-                f"👋 ʜᴇʏ {user.mention},\n"
-                f"ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴘᴜʀᴄʜᴀꜱɪɴɢ ᴘʀᴇᴍɪᴜᴍ.\n"
-                f"ᴇɴᴊᴏʏ !! ✨🎉\n\n"
-                f"⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time_string}</code>\n"
-                f"⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n"
-                f"⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
-            ),
-            disable_web_page_preview=True              
-        )    
+        try:
+            await client.send_message(
+                user_id,
+                message=(
+                    f"👋 ʜᴇʏ {user_mention},\n"
+                    f"ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴘᴜʀᴄʜᴀꜱɪɴɢ ᴘʀᴇᴍɪᴜᴍ.\n"
+                    f"ᴇɴᴊᴏʏ !! ✨🎉\n\n"
+                    f"⏰ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ : <code>{time_string}</code>\n"
+                    f"⏳ ᴊᴏɪɴɪɴɢ ᴅᴀᴛᴇ : {current_time}\n\n"
+                    f"⌛️ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
+                ),
+                link_preview=False              
+            )
+        except:
+            pass
 
 
-@Client.on_message(filters.command(["removepremium", "remove_premium"]) & filters.user(Config.ADMIN))
-async def remove_premium(bot, message):
-    if not bot.premium:
-        return await message.reply_text("premium mode disabled ✅")
-     
-    if len(message.command) == 2:
-        user_id = int(message.command[1])
-        user = await bot.get_users(user_id)
+@Config.BOT.on(events.NewMessage(pattern=r'^/(removepremium|remove_premium)', from_users=Config.ADMIN))
+async def remove_premium(event):
+    bot = event.client
+    is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
+    
+    if not is_premium_mode:
+        return await event.reply("premium mode disabled ✅")
+    
+    command_args = event.text.split()
+    
+    if len(command_args) == 2:
+        user_id = int(command_args[1])
+        try:
+            user = await bot.get_entity(user_id)
+            user_mention = get_mention(user)
+        except:
+            user_mention = f"User({user_id})"
+
         if await digital_botz.has_premium_access(user_id):
             await digital_botz.remove_premium(user_id)
-            await message.reply_text(
-                f"ʜᴇʏ {user.mention}, ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴ sᴜᴄᴄᴇssғᴜʟʟʏ ʀᴇᴍᴏᴠᴇᴅ.",
-                quote=True
+            await event.reply(
+                f"ʜᴇʏ {user_mention}, ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴ sᴜᴄᴄᴇssғᴜʟʟʏ ʀᴇᴍᴏᴠᴇᴅ."
             )
-            await bot.send_message(
-                chat_id=user_id,
-                text=(
-                    f"<b>ʜᴇʏ {user.mention},\n\n"
-                    f"✨ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ʜᴀs ʙᴇᴇɴ ʀᴇᴍᴏᴠᴇᴅ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴ\n\n"
-                    f"ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴘʟᴀɴ ʜᴇʀᴇ /myplan</b>"
+            try:
+                await bot.send_message(
+                    user_id,
+                    message=(
+                        f"<b>ʜᴇʏ {user_mention},\n\n"
+                        f"✨ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ʜᴀs ʙᴇᴇɴ ʀᴇᴍᴏᴠᴇᴅ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴ\n\n"
+                        f"ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴘʟᴀɴ ʜᴇʀᴇ /myplan</b>"
+                    )
                 )
-            )
+            except:
+                pass
         else:
-            await message.reply_text(
-                "ᴜɴᴀʙʟᴇ ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ !\nᴀʀᴇ ʏᴏᴜ ꜱᴜʀᴇ, ɪᴛ ᴡᴀꜱ ᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ ɪᴅ ?",
-                quote=True
+            await event.reply(
+                "ᴜɴᴀʙʟᴇ ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ !\nᴀʀᴇ ʏᴏᴜ ꜱᴜʀᴇ, ɪᴛ ᴡᴀꜱ ᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀ ɪᴅ ?"
             )
     else:
-        await message.reply_text(
-            "📜 ᴜꜱᴀɢᴇ : `/remove_premium ᴜꜱᴇʀ ɪᴅ`",
-            quote=True
+        await event.reply(
+            "📜 ᴜꜱᴀɢᴇ : `/remove_premium ᴜꜱᴇʀ ɪᴅ`"
         )
 
 
 # Restart to cancell all process 
-@Client.on_message(filters.private & filters.command("restart") & filters.user(Config.ADMIN))
-async def restart_bot(b, m):
+@Config.BOT.on(events.NewMessage(pattern=r'^/restart$', from_users=Config.ADMIN))
+async def restart_bot(event):
+    b = event.client
+    # Only allow in private chat
+    if not event.is_private:
+        return
+
     rkn = await b.send_message(
-        text="**🔄 ᴘʀᴏᴄᴇssᴇs sᴛᴏᴘᴘᴇᴅ. ʙᴏᴛ ɪs ʀᴇsᴛᴀʀᴛɪɴɢ.....**",
-        chat_id=m.chat.id
+        event.chat_id,
+        "**🔄 ᴘʀᴏᴄᴇssᴇs sᴛᴏᴘᴘᴇᴅ. ʙᴏᴛ ɪs ʀᴇsᴛᴀʀᴛɪɴɢ.....**"
     )
     failed = 0
     success = 0
@@ -279,24 +327,30 @@ async def restart_bot(b, m):
     start_time = time.time()
     total_users = await digital_botz.total_users_count()
     all_users = await digital_botz.get_all_users()
+    
     async for user in all_users:
         try:
+            # Fetch user entity to get name for mention
+            user_entity = await b.get_entity(user['_id'])
+            user_mention = get_mention(user_entity)
+            
             restart_msg = (
-                f"ʜᴇʏ, {(await b.get_users(user['_id'])).mention}\n\n"
+                f"ʜᴇʏ, {user_mention}\n\n"
                 f"**🔄 ᴘʀᴏᴄᴇssᴇs sᴛᴏᴘᴘᴇᴅ. ʙᴏᴛ ɪs ʀᴇsᴛᴀʀᴛɪɴɢ.....\n\n"
                 f"✅️ ʙᴏᴛ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ. ɴᴏᴡ ʏᴏᴜ ᴄᴀɴ ᴜsᴇ ᴍᴇ.**"
             )
             await b.send_message(user['_id'], restart_msg)
             success += 1
-        except InputUserDeactivated:
+        except errors.InputUserDeactivatedError:
             deactivated += 1
             await digital_botz.delete_user(user['_id'])
-        except UserIsBlocked:
+        except errors.UserBlockedError:
             blocked += 1
             await digital_botz.delete_user(user['_id'])
         except Exception as e:
             failed += 1
-            await digital_botz.delete_user(user['_id'])
+            # Don't delete on generic errors, maybe just failed to send
+            # await digital_botz.delete_user(user['_id'])
             print(e)
             pass
         try:
@@ -308,8 +362,9 @@ async def restart_bot(b, m):
                 f"• ᴅᴇʟᴇᴛᴇᴅ ᴀᴄᴄᴏᴜɴᴛs: {deactivated}\n"
                 f"• ᴜɴsᴜᴄᴄᴇssғᴜʟ: {failed}"
             )
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
+        except errors.FloodWaitError as e:
+            await asyncio.sleep(e.seconds)
+    
     completed_restart = datetime.timedelta(seconds=int(time.time() - start_time))
     await rkn.edit(
         f"ᴄᴏᴍᴘʟᴇᴛᴇᴅ ʀᴇsᴛᴀʀᴛ: {completed_restart}\n\n"
@@ -322,24 +377,29 @@ async def restart_bot(b, m):
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 
-@Client.on_message(filters.private & filters.command("ban") & filters.user(Config.ADMIN))
-async def ban(c: Client, m: Message):
-    if len(m.command) == 1:
-        await m.reply_text(
+@Config.BOT.on(events.NewMessage(pattern=r'^/ban', from_users=Config.ADMIN))
+async def ban(event):
+    if not event.is_private:
+        return
+
+    c = event.client
+    command_args = event.text.split()
+
+    if len(command_args) == 1:
+        await event.reply(
             f"🚫 Use this command to ban any user from the bot.\n\n"
             f"📜 Usage:\n\n"
             f"`/ban user_id ban_duration ban_reason`\n\n"
             f"🧪 Example:\n"
             f"`/ban 1234567 28 You misused me.`\n\n"
-            f"✅ This will ban user with ID `1234567` for `28` days for the reason: `You misused me`.",
-            quote=True
+            f"✅ This will ban user with ID `1234567` for `28` days for the reason: `You misused me`."
         )
         return
 
     try:
-        user_id = int(m.command[1])
-        ban_duration = int(m.command[2])
-        ban_reason = ' '.join(m.command[3:])
+        user_id = int(command_args[1])
+        ban_duration = int(command_args[2])
+        ban_reason = ' '.join(command_args[3:])
         ban_log_text = f"Banning user {user_id} for {ban_duration} days for the reason {ban_reason}."
         try:
             await c.send_message(
@@ -353,31 +413,35 @@ async def ban(c: Client, m: Message):
             ban_log_text += f"\n\nUser notification failed! \n\n`{traceback.format_exc()}`"
 
         await digital_botz.ban_user(user_id, ban_duration, ban_reason)
-        await m.reply_text(ban_log_text, quote=True)
+        await event.reply(ban_log_text)
     except:
         traceback.print_exc()
-        await m.reply_text(
-            f"🧪 Error occoured! Traceback given below\n\n`{traceback.format_exc()}`",
-            quote=True
+        await event.reply(
+            f"🧪 Error occoured! Traceback given below\n\n`{traceback.format_exc()}`"
         )
 
 
-@Client.on_message(filters.private & filters.command("unban") & filters.user(Config.ADMIN))
-async def unban(c: Client, m: Message):
-    if len(m.command) == 1:
-        await m.reply_text(
+@Config.BOT.on(events.NewMessage(pattern=r'^/unban', from_users=Config.ADMIN))
+async def unban(event):
+    if not event.is_private:
+        return
+        
+    c = event.client
+    command_args = event.text.split()
+    
+    if len(command_args) == 1:
+        await event.reply(
             f"🔓 Use this command to unban any user.\n\n"
             f"📜 Usage:\n\n"
             f"`/unban user_id`\n\n"
             f"🧪 Example:\n"
             f"`/unban 1234567`\n\n"
-            f"✅ This will unban user with ID `1234567`.",
-            quote=True
+            f"✅ This will unban user with ID `1234567`."
         )
         return
 
     try:
-        user_id = int(m.command[1])
+        user_id = int(command_args[1])
         unban_log_text = f"Unbanning user {user_id}"
         try:
             await c.send_message(user_id, f"Your ban was lifted!")
@@ -386,17 +450,19 @@ async def unban(c: Client, m: Message):
             traceback.print_exc()
             unban_log_text += f"\n\nUser notification failed! \n\n`{traceback.format_exc()}`"
         await digital_botz.remove_ban(user_id)
-        await m.reply_text(unban_log_text, quote=True)
+        await event.reply(unban_log_text)
     except:
         traceback.print_exc()
-        await m.reply_text(
-            f"🧪 Error occurred! Traceback given below\n\n`{traceback.format_exc()}`",
-            quote=True
+        await event.reply(
+            f"🧪 Error occurred! Traceback given below\n\n`{traceback.format_exc()}`"
         )
 
 
-@Client.on_message(filters.private & filters.command("banned_users") & filters.user(Config.ADMIN))
-async def _banned_users(_, m: Message):
+@Config.BOT.on(events.NewMessage(pattern=r'^/banned_users$', from_users=Config.ADMIN))
+async def _banned_users(event):
+    if not event.is_private:
+        return
+        
     all_banned_users = await digital_botz.get_all_banned_users()
     banned_usr_count = 0
     text = ''
@@ -416,28 +482,41 @@ async def _banned_users(_, m: Message):
     if len(reply_text) > 4096:
         with open('banned-users.txt', 'w') as f:
             f.write(reply_text)
-        await m.reply_document('banned-users.txt', True)
+        await event.reply(file='banned-users.txt')
         os.remove('banned-users.txt')
         return
-    await m.reply_text(reply_text, True)
+    await event.reply(reply_text)
 
      
-@Client.on_message(filters.command("broadcast") & filters.user(Config.ADMIN) & filters.reply)
-async def broadcast_handler(bot: Client, m: Message):
-    await bot.send_message(
-        Config.LOG_CHANNEL,
-        f"{m.from_user.mention} or {m.from_user.id} ʜᴀꜱ ꜱᴛᴀʀᴛᴇᴅ ᴀ Bʀᴏᴀᴅᴄᴀꜱᴛ......🌋"
-    )
+@Config.BOT.on(events.NewMessage(pattern=r'^/broadcast$', from_users=Config.ADMIN))
+async def broadcast_handler(event):
+    if not event.is_reply:
+        await event.reply("Please reply to a message to broadcast.")
+        return
+
+    bot = event.client
+    # Log to channel
+    try:
+        sender = await event.get_sender()
+        mention = get_mention(sender)
+        await bot.send_message(
+            Config.LOG_CHANNEL,
+            f"{mention} or {sender.id} ʜᴀꜱ ꜱᴛᴀʀᴛᴇᴅ ᴀ Bʀᴏᴀᴅᴄᴀꜱᴛ......🌋"
+        )
+    except:
+        pass
+
     all_users = await digital_botz.get_all_users()
-    broadcast_msg = m.reply_to_message
-    sts_msg = await m.reply_text("Bʀᴏᴀᴅᴄᴀꜱᴛ Sᴛᴀʀᴛᴇᴅ..!") 
+    broadcast_msg = await event.get_reply_message()
+    sts_msg = await event.reply("Bʀᴏᴀᴅᴄᴀꜱᴛ Sᴛᴀʀᴛᴇᴅ..!") 
     done = 0
     failed = 0
     success = 0
     start_time = time.time()
     total_users = await digital_botz.total_users_count()
+    
     async for user in all_users:
-        sts = await send_msg(user['_id'], broadcast_msg)
+        sts = await send_msg(bot, user['_id'], broadcast_msg)
         if sts == 200:
             success += 1
         else:
@@ -453,6 +532,7 @@ async def broadcast_handler(bot: Client, m: Message):
                 f"Sᴜᴄᴄᴇꜱꜱ: {success}\n"
                 f"Fᴀɪʟᴇᴅ: {failed}"
             )
+    
     completed_in = datetime.timedelta(seconds=int(time.time() - start_time))
     await sts_msg.edit(
         f"Bʀᴏᴀᴅᴄᴀꜱᴛ Cᴏᴍᴩʟᴇᴛᴇᴅ: \n"
@@ -463,20 +543,21 @@ async def broadcast_handler(bot: Client, m: Message):
         f"Fᴀɪʟᴇᴅ: {failed}"
     )
            
-async def send_msg(user_id, message):
+async def send_msg(bot, user_id, message):
     try:
-        await message.copy(chat_id=int(user_id))
+        # Telethon send_message acts as copy if message object is passed
+        await bot.send_message(int(user_id), message)
         return 200
-    except FloodWait as e:
-        await asyncio.sleep(e.value)
-        return await send_msg(user_id, message)
-    except InputUserDeactivated:
+    except errors.FloodWaitError as e:
+        await asyncio.sleep(e.seconds)
+        return await send_msg(bot, user_id, message)
+    except errors.InputUserDeactivatedError:
         logger.info(f"{user_id} : Dᴇᴀᴄᴛɪᴠᴀᴛᴇᴅ")
         return 400
-    except UserIsBlocked:
+    except errors.UserBlockedError:
         logger.info(f"{user_id} : Bʟᴏᴄᴋᴇᴅ Tʜᴇ Bᴏᴛ")
         return 400
-    except PeerIdInvalid:
+    except errors.PeerIdInvalidError:
         logger.info(f"{user_id} : Uꜱᴇʀ Iᴅ Iɴᴠᴀʟɪᴅ")
         return 400
     except Exception as e:
