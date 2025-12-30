@@ -30,64 +30,70 @@ License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICEN
 """
 
 # imports
-from pyrogram import Client, filters, enums
+from telethon import events
 from helper.database import digital_botz
+from config import Config
 
 # prefix commond ✨
-@Client.on_message(filters.private & filters.command('set_prefix'))
-async def add_prefix(client, message):
-    if len(message.command) == 1:
-        return await message.reply_text("**__Give The Prefix__\n\nExᴀᴍᴩʟᴇ:- `/set_prefix @OtherBs`**")
-    prefix = message.text.split(" ", 1)[1]
-    RknDev = await message.reply_text("Please Wait ...", reply_to_message_id=message.id)
-    await digital_botz.set_prefix(message.from_user.id, prefix)
-    await RknDev.edit("__**✅ ᴘʀᴇꜰɪx ꜱᴀᴠᴇᴅ**__")
+@Config.BOT.on(events.NewMessage(pattern=r'^/set_prefix', func=lambda e: e.is_private))
+async def add_prefix(event):
+    # Split text to check for arguments
+    args = event.text.split(" ", 1)
+    if len(args) == 1:
+        return await event.reply("**__Give The Prefix__\n\nExᴀᴍᴩʟᴇ:- `/set_prefix @OtherBs`**")
+    
+    prefix = args[1]
+    rkn_dev = await event.reply("Please Wait ...")
+    await digital_botz.set_prefix(event.sender_id, prefix)
+    await rkn_dev.edit("__**✅ ᴘʀᴇꜰɪx ꜱᴀᴠᴇᴅ**__")
 
-@Client.on_message(filters.private & filters.command('del_prefix'))
-async def delete_prefix(client, message):
-    RknDev = await message.reply_text("Please Wait ...", reply_to_message_id=message.id)
-    prefix = await digital_botz.get_prefix(message.from_user.id)
+@Config.BOT.on(events.NewMessage(pattern=r'^/del_prefix', func=lambda e: e.is_private))
+async def delete_prefix(event):
+    rkn_dev = await event.reply("Please Wait ...")
+    prefix = await digital_botz.get_prefix(event.sender_id)
     if not prefix:
-        return await RknDev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ᴘʀᴇꜰɪx**__")
-    await digital_botz.set_prefix(message.from_user.id, None)
-    await RknDev.edit("__**❌️ ᴘʀᴇꜰɪx ᴅᴇʟᴇᴛᴇᴅ**__")
+        return await rkn_dev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ᴘʀᴇꜰɪx**__")
+    await digital_botz.set_prefix(event.sender_id, None)
+    await rkn_dev.edit("__**❌️ ᴘʀᴇꜰɪx ᴅᴇʟᴇᴛᴇᴅ**__")
 
-@Client.on_message(filters.private & filters.command('see_prefix'))
-async def see_prefix(client, message):
-    RknDev = await message.reply_text("Please Wait ...", reply_to_message_id=message.id)
-    prefix = await digital_botz.get_prefix(message.from_user.id)
+@Config.BOT.on(events.NewMessage(pattern=r'^/see_prefix', func=lambda e: e.is_private))
+async def see_prefix(event):
+    rkn_dev = await event.reply("Please Wait ...")
+    prefix = await digital_botz.get_prefix(event.sender_id)
     if prefix:
-        await RknDev.edit(f"**ʏᴏᴜʀ ᴘʀᴇꜰɪx:-**\n\n`{prefix}`")
+        await rkn_dev.edit(f"**ʏᴏᴜʀ ᴘʀᴇꜰɪx:-**\n\n`{prefix}`")
     else:
-        await RknDev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ᴘʀᴇꜰɪx**__")
+        await rkn_dev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ᴘʀᴇꜰɪx**__")
 
 # SUFFIX COMMOND ✨
-@Client.on_message(filters.private & filters.command('set_suffix'))
-async def add_suffix(client, message):
-    if len(message.command) == 1:
-        return await message.reply_text("**__Give The Suffix__\n\nExᴀᴍᴩʟᴇ:- `/set_suffix @OtherBs`**")
-    suffix = message.text.split(" ", 1)[1]
-    RknDev = await message.reply_text("Please Wait ...", reply_to_message_id=message.id)
-    await digital_botz.set_suffix(message.from_user.id, suffix)
-    await RknDev.edit("__**✅ ꜱᴜꜰꜰɪx ꜱᴀᴠᴇᴅ**__")
+@Config.BOT.on(events.NewMessage(pattern=r'^/set_suffix', func=lambda e: e.is_private))
+async def add_suffix(event):
+    args = event.text.split(" ", 1)
+    if len(args) == 1:
+        return await event.reply("**__Give The Suffix__\n\nExᴀᴍᴩʟᴇ:- `/set_suffix @OtherBs`**")
+    
+    suffix = args[1]
+    rkn_dev = await event.reply("Please Wait ...")
+    await digital_botz.set_suffix(event.sender_id, suffix)
+    await rkn_dev.edit("__**✅ ꜱᴜꜰꜰɪx ꜱᴀᴠᴇᴅ**__")
 
-@Client.on_message(filters.private & filters.command('del_suffix'))
-async def delete_suffix(client, message):
-    RknDev = await message.reply_text("Please Wait ...", reply_to_message_id=message.id)
-    suffix = await digital_botz.get_suffix(message.from_user.id)
+@Config.BOT.on(events.NewMessage(pattern=r'^/del_suffix', func=lambda e: e.is_private))
+async def delete_suffix(event):
+    rkn_dev = await event.reply("Please Wait ...")
+    suffix = await digital_botz.get_suffix(event.sender_id)
     if not suffix:
-        return await RknDev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜱᴜꜰꜰɪx**__")
-    await digital_botz.set_suffix(message.from_user.id, None)
-    await RknDev.edit("__**❌️ ꜱᴜꜰꜰɪx ᴅᴇʟᴇᴛᴇᴅ**__")
+        return await rkn_dev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜱᴜꜰꜰɪx**__")
+    await digital_botz.set_suffix(event.sender_id, None)
+    await rkn_dev.edit("__**❌️ ꜱᴜꜰꜰɪx ᴅᴇʟᴇᴛᴇᴅ**__")
 
-@Client.on_message(filters.private & filters.command('see_suffix'))
-async def see_suffix(client, message):
-    RknDev = await message.reply_text("Please Wait ...", reply_to_message_id=message.id)
-    suffix = await digital_botz.get_suffix(message.from_user.id)
+@Config.BOT.on(events.NewMessage(pattern=r'^/see_suffix', func=lambda e: e.is_private))
+async def see_suffix(event):
+    rkn_dev = await event.reply("Please Wait ...")
+    suffix = await digital_botz.get_suffix(event.sender_id)
     if suffix:
-        await RknDev.edit(f"**ʏᴏᴜʀ ꜱᴜꜰꜰɪx:-**\n\n`{suffix}`")
+        await rkn_dev.edit(f"**ʏᴏᴜʀ ꜱᴜꜰꜰɪx:-**\n\n`{suffix}`")
     else:
-        await RknDev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜱᴜꜰꜰɪx**__")
+        await rkn_dev.edit("__**😔 ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜱᴜꜰꜰɪx**__")
 
 # Rkn Developer 
 # Don't Remove Credit 😔
