@@ -162,6 +162,7 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
+        # Safer send_message logic with fallback
         try:
             await client.send_message(
                 event.chat_id,
@@ -170,7 +171,12 @@ async def refunc(event):
                 buttons=buttons
             )
         except Exception as e:
-            await event.reply(f"Error bringing buttons: {e}\nTry uploading again.")
+            # Fallback if reply_to fails (e.g. original message deleted)
+            await client.send_message(
+                event.chat_id,
+                f"Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ\n• Fɪʟᴇ Nᴀᴍᴇ :- `{new_name}`",
+                buttons=buttons
+            )
 
 
 @Config.BOT.on(events.CallbackQuery(pattern="upload"))
@@ -229,7 +235,7 @@ async def doc(event):
         await progress_for_pyrogram(current, total, DOWNLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # FAST DOWNLOAD
+        # Stable Download
         dl_path = await fast_download(
             client=bot,
             msg=file_msg,
@@ -237,7 +243,7 @@ async def doc(event):
             progress_callback=progress_wrapper
         )
         if not dl_path:
-            raise Exception("Download failed (Check Connection/DC)")
+            raise Exception("Download failed")
             
     except Exception as e:
         if is_premium_mode and is_upload_limit:
@@ -336,7 +342,7 @@ async def doc(event):
         await progress_for_pyrogram(current, total, UPLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # FAST UPLOAD
+        # FAST UPLOAD (Stable)
         input_file = await fast_upload(
             client=upload_client,
             file_path=final_path,
@@ -344,7 +350,7 @@ async def doc(event):
             name=new_filename
         )
         
-        # 1. Upload to Log Channel first (using Premium Client if needed)
+        # 1. Upload to Log Channel first
         uploaded_msg = await upload_client.send_file(
             Config.LOG_CHANNEL,
             file=input_file,
@@ -355,14 +361,13 @@ async def doc(event):
             parse_mode='html'
         )
         
-        # 2. Get reference using Bot Client to ensure compatibility
-        # We fetch the message from the channel using the BOT client
+        # 2. Get reference from Bot Client to ensure compatibility
         msg_ref = await bot.get_messages(Config.LOG_CHANNEL, ids=uploaded_msg.id)
         
-        # 3. Send to User (Copying media from the log channel message)
+        # 3. Send to User (Copying media)
         await bot.send_file(
             user_id,
-            file=msg_ref.media, # Use the media object from the bot's perspective
+            file=msg_ref.media,
             caption=caption,
             parse_mode='html'
         )
