@@ -41,10 +41,7 @@ from config import Config, rkn
 from helper.utils import humanbytes
 # Note: Ensure plugins/__init__.py exposes these variables correctly
 from plugins import __version__ as _bot_version_, __developer__, __database__, __library__, __language__, __programer__
-# Import the upload handler logic if it resides in another module, 
-# or ensure the file_rename plugin handles the "upload" callback independently.
-# In Telethon, we can invoke other handlers or just let the pattern match in file_rename.py catch it 
-# if we register it there. For now, assuming upload_doc is imported or we trigger it via dispatch.
+# Import the upload handler logic
 from plugins.file_rename import doc as upload_doc
 
 def format_uptime(seconds: int) -> str:
@@ -297,9 +294,12 @@ async def cb_handler(event):
         else:
             about_button[-1].append(Button.inline("Bᴀᴄᴋ", data="start"))
             
+        # FIX: Fetch bot user explicitly to get name and id
+        bot_user = await client.get_me()
+        
         await event.edit(
             text=rkn.ABOUT_TXT.format(
-                f"[{client.me.first_name}](tg://user?id={client.me.id})", 
+                f"[{bot_user.first_name}](tg://user?id={bot_user.id})", 
                 __developer__, __programer__, __library__, __language__, __database__, _bot_version_
             ),
             link_preview=False,
