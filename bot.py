@@ -37,15 +37,15 @@ import glob, sys
 import importlib.util
 from pathlib import Path
 
-# pyrogram imports
-from pyrogram import Client, __version__, errors
-from pyrogram.raw.all import layer
-from pyrogram import idle
+# Telethon imports
+from telethon import TelegramClient, errors, events
+from telethon.sessions import StringSession
 
 # bots imports
 from config import Config
 from plugins.web_support import web_server
-from plugins.file_rename import app
+# NOTE: Ensure plugins/file_rename.py is also converted to Telethon to export 'app' correctly
+from plugins.file_rename import app 
 
 # Get logging configurations
 logging.basicConfig(
@@ -54,37 +54,40 @@ logging.basicConfig(
              logging.StreamHandler()]
 )
 #logger = logging.getLogger(__name__)
-logging.getLogger("pyrofork").setLevel(logging.WARNING)
+logging.getLogger("telethon").setLevel(logging.WARNING)
 
-class DigitalRenameBot(Client):
+class DigitalRenameBot(TelegramClient):
     def __init__(self):
         super().__init__(
-            name="DigitalRenameBot",
+            session="DigitalRenameBot",
             api_id=Config.API_ID,
-            api_hash=Config.API_HASH,
-            bot_token=Config.BOT_TOKEN,
-            workers=200,
-            plugins={"root": "plugins"},
-            sleep_threshold=5,
-            max_concurrent_transmissions=50
+            api_hash=Config.API_HASH
         )
                 
-         
     async def start(self):
-        await super().start()
+        # Start the client with the bot token
+        await super().start(bot_token=Config.BOT_TOKEN)
+        
         me = await self.get_me()
-        self.mention = me.mention
+        # Telethon doesn't have a native .mention property, so we create one manually for markdown
+        self.mention = f"[{me.first_name}](tg://user?id={me.id})"
         self.username = me.username  
         self.uptime = Config.BOT_UPTIME
         self.premium = Config.PREMIUM_MODE
         self.uploadlimit = Config.UPLOAD_LIMIT_MODE
+        
+        # Set global config bot instance so plugins can access it
         Config.BOT = self
         
-        app = aiohttp.web.AppRunner(await web_server())
-        await app.setup()
+        # Start Web Server
+        app_runner = aiohttp.web.AppRunner(await web_server())
+        await app_runner.setup()
         bind_address = "0.0.0.0"
-        await aiohttp.web.TCPSite(app, bind_address, Config.PORT).start()
+        await aiohttp.web.TCPSite(app_runner, bind_address, Config.PORT).start()
         
+        # Manual Plugin Loader
+        # Telethon doesn't auto-load plugins like Pyrogram, so we keep this manual loading logic.
+        # Ensure your plugins use the client instance from Config.BOT or similar logic.
         path = "plugins/*.py"
         files = glob.glob(path)
         for name in files:
@@ -101,31 +104,38 @@ class DigitalRenameBot(Client):
                 
         print(f"{me.first_name} Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
 
-        
-        for id in Config.ADMIN:
+        # Send Startup Messages to Admins
+        for admin_id in Config.ADMIN:
             if Config.STRING_SESSION:
-                try: await self.send_message(id, f"𝟮𝗚𝗕+ ғɪʟᴇ sᴜᴘᴘᴏʀᴛ ʜᴀs ʙᴇᴇɴ ᴀᴅᴅᴇᴅ ᴛᴏ ʏᴏᴜʀ ʙᴏᴛ.\n\nNote: Enjoy😂👌.\n\n**__{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️__**")                                
-                except: pass
+                try: 
+                    await self.send_message(admin_id, f"𝟮𝗚𝗕+ ғɪʟᴇ sᴜᴘᴘᴏʀᴛ ʜᴀs ʙᴇᴇɴ ᴀᴅᴅᴇᴅ ᴛᴏ ʏᴏᴜʀ ʙᴏᴛ.\n\nNote: Enjoy😂👌.\n\n**__{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️__**")                                
+                except: 
+                    pass
             else:
-                try: await self.send_message(id, f"𝟮𝗚𝗕- ғɪʟᴇ sᴜᴘᴘᴏʀᴛ ʜᴀs ʙᴇᴇɴ ᴀᴅᴅᴇᴅ ᴛᴏ ʏᴏᴜʀ ʙᴏᴛ.\n\n**__{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️__**")                                
-                except: pass
+                try: 
+                    await self.send_message(admin_id, f"𝟮𝗚𝗕- ғɪʟᴇ sᴜᴘᴘᴏʀᴛ ʜᴀs ʙᴇᴇɴ ᴀᴅᴅᴇᴅ ᴛᴏ ʏᴏᴜʀ ʙᴏᴛ.\n\n**__{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️__**")                                
+                except: 
+                    pass
                     
+        # Send Startup Log to Channel
         if Config.LOG_CHANNEL:
             try:
                 curr = datetime.datetime.now(pytz.timezone("Africa/Nairobi"))
                 date = curr.strftime('%d %B, %Y')
                 time = curr.strftime('%I:%M:%S %p')
-                await self.send_message(Config.LOG_CHANNEL, f"**🌋 __{me.mention} Iꜱ Rᴇsᴛᴀʀᴛᴇᴅ !!**\n\n📅 Dᴀᴛᴇ : `{date}`\n⏰ Tɪᴍᴇ : `{time}`\n🌐 Tɪᴍᴇᴢᴏɴᴇ : `Africa/Nairobi`\n\n🉐 Vᴇʀsɪᴏɴ : `v{__version__} (Layer {layer})`</b>")                                
-            except:
-                print("Pʟᴇᴀꜱᴇ Mᴀᴋᴇ Tʜɪꜱ Iꜱ Aᴅᴍɪɴ Iɴ Yᴏᴜʀ Lᴏɢ Cʜᴀɴɴᴇʟ")
+                await self.send_message(Config.LOG_CHANNEL, f"**🌋 __{self.mention} Iꜱ Rᴇsᴛᴀʀᴛᴇᴅ !!**\n\n📅 Dᴀᴛᴇ : `{date}`\n⏰ Tɪᴍᴇ : `{time}`\n🌐 Tɪᴍᴇᴢᴏɴᴇ : `Africa/Nairobi`\n\n🉐 Vᴇʀsɪᴏɴ : `v1.0 (Telethon)`</b>")                                
+            except Exception as e:
+                print(f"Pʟᴇᴀꜱᴇ Mᴀᴋᴇ Tʜɪꜱ Iꜱ Aᴅᴍɪɴ Iɴ Yᴏᴜʀ Lᴏɢ Cʜᴀɴɴᴇʟ: {e}")
 
     async def stop(self, *args):
-        for id in Config.ADMIN:
-            try: await self.send_message(id, f"**Bot Stopped....**")                                
-            except: pass
+        for admin_id in Config.ADMIN:
+            try: 
+                await self.send_message(admin_id, f"**Bot Stopped....**")                                
+            except: 
+                pass
                 
         print("Bot Stopped 🙄")
-        await super().stop()
+        await super().disconnect()
 
 
 digital_instance = DigitalRenameBot()
@@ -133,18 +143,19 @@ digital_instance = DigitalRenameBot()
 def main():
     async def start_services():
         if Config.STRING_SESSION:
+            # Start both the userbot (app) and the bot (digital_instance)
+            # Assuming 'app' is also a Telethon client or compatible awaitable
             await asyncio.gather(app.start(), digital_instance.start())
         else:
             await asyncio.gather(digital_instance.start())
         
-        # Idle mode start karo
-        await idle()
-        
-        # Bot stop karo
+        # Idle / Run until disconnected
+        # Telethon uses run_until_disconnected() to block
+        print("Services Started. Idling...")
         if Config.STRING_SESSION:
-            await asyncio.gather(app.stop(), digital_instance.stop())
+            await asyncio.gather(app.run_until_disconnected(), digital_instance.run_until_disconnected())
         else:
-            await asyncio.gather(digital_instance.stop())
+            await digital_instance.run_until_disconnected()
 
     loop = asyncio.get_event_loop()
     try:
@@ -158,9 +169,10 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", message="There is no current event loop")
     try:
         main()
-    except errors.FloodWait as ft:
-        print(f"⏳ FloodWait: Sleeping for {ft.value} seconds")
-        asyncio.run(asyncio.sleep(ft.value))
+    except errors.FloodWaitError as ft:
+        # Telethon's flood wait error is FloodWaitError
+        print(f"⏳ FloodWait: Sleeping for {ft.seconds} seconds")
+        asyncio.run(asyncio.sleep(ft.seconds))
         print("Now Ready For Deploying!")
         main()
         
