@@ -1,63 +1,66 @@
 import asyncio
 import os
-import time
 from telethon import utils
-from telethon.tl.types import DocumentAttributeFilename
-from telethon.tl.functions.auth import ExportAuthorizationRequest
-from telethon.tl.functions.upload import SaveBigFilePartRequest, GetFileRequest
+from telethon.tl.functions.upload import GetFileRequest
 
-# Define chunk size (Pyrogram uses 1MB or similar, we use 512KB aligned)
-PART_SIZE_KB = 512
-PART_SIZE = PART_SIZE_KB * 1024
+# Chunk size for parallel download (512KB is reliable)
+PART_SIZE = 512 * 1024
 
 async def fast_download(client, msg, file, progress_callback=None):
     """
-    Downloads a file in parallel using multiple workers.
+    Downloads file in parallel if on the same DC, otherwise falls back to standard download.
     """
-    # Get the input location of the file
     media = msg.media
     if not media:
-        raise ValueError("No media found in message")
-    
+        return None
+        
     input_location = utils.get_input_location(media)
     if not input_location:
-        raise ValueError("Could not get input location")
+        return None
 
-    # Get file size
+    # Check File Size
     size = media.document.size if hasattr(media, 'document') else media.photo.sizes[-1].size
     
-    # If file is small, use standard download
-    if size < 10 * 1024 * 1024: # 10MB
-        return await client.download_media(msg, file=file, progress_callback=progress_callback)
+    # Check Data Center (DC)
+    # If the file is on a different DC, parallel download is complex/unstable. 
+    # Fallback to standard download_media which handles DC switching automatically.
+    file_dc = getattr(media.document, 'dc_id', None) if hasattr(media, 'document') else getattr(media.photo, 'dc_id', None)
+    session_dc = client.session.dc_id
+    
+    # Use standard download if: Small file OR Different DC
+    if size < 10 * 1024 * 1024 or (file_dc and file_dc != session_dc):
+        return await client.download_media(
+            msg, 
+            file=file, 
+            progress_callback=progress_callback
+        )
 
-    # Open file for writing
+    # Parallel Download for Same-DC files
     with open(file, 'wb') as f:
         f.truncate(size)
 
-    # Calculate parts
     part_count = (size + PART_SIZE - 1) // PART_SIZE
-    
-    # Create a queue of parts to download
     queue = asyncio.Queue()
+    
+    # Fill queue
     for i in range(part_count):
         await queue.put(i)
 
-    # Worker function
     async def worker():
         while not queue.empty():
             part_index = await queue.get()
             offset = part_index * PART_SIZE
             limit = PART_SIZE
             
-            # Request chunk
             try:
+                # Request chunk
                 result = await client(GetFileRequest(
                     location=input_location,
                     offset=offset,
                     limit=limit
                 ))
                 
-                # Write to specific location in file
+                # Write chunk
                 with open(file, 'r+b') as f:
                     f.seek(offset)
                     f.write(result.bytes)
@@ -67,11 +70,13 @@ async def fast_download(client, msg, file, progress_callback=None):
                     
             except Exception as e:
                 print(f"Part {part_index} failed: {e}")
-                await queue.put(part_index) # Retry
+                # Retry logic could be added here, but for now we let it fail safely
+                await queue.put(part_index) 
+                await asyncio.sleep(1)
             finally:
                 queue.task_done()
 
-    # Start workers (4 parallel connections is standard safe limit)
+    # 4 Workers is usually the sweet spot
     workers = [asyncio.create_task(worker()) for _ in range(4)]
     await queue.join()
     
@@ -82,59 +87,11 @@ async def fast_download(client, msg, file, progress_callback=None):
 
 async def fast_upload(client, file_path, progress_callback=None, name=None):
     """
-    Uploads a file in parallel. Returns the uploaded file object (InputFile).
+    Uses Telethon's native parallel uploader which is optimized and stable.
     """
-    file_size = os.path.getsize(file_path)
-    
-    # If small file, standard upload is fine
-    if file_size < 10 * 1024 * 1024:
-        return await client.upload_file(file_path, progress_callback=progress_callback)
-
-    # Generate a unique file ID
-    file_id = utils.generate_random_long()
-    part_count = (file_size + PART_SIZE - 1) // PART_SIZE
-
-    queue = asyncio.Queue()
-    for i in range(part_count):
-        await queue.put(i)
-
-    async def worker():
-        while not queue.empty():
-            part_index = await queue.get()
-            offset = part_index * PART_SIZE
-            
-            with open(file_path, 'rb') as f:
-                f.seek(offset)
-                data = f.read(PART_SIZE)
-            
-            try:
-                await client(SaveBigFilePartRequest(
-                    file_id=file_id,
-                    file_part=part_index,
-                    file_total_parts=part_count,
-                    bytes=data
-                ))
-                
-                if progress_callback:
-                    await progress_callback(min((part_index + 1) * PART_SIZE, file_size), file_size)
-                    
-            except Exception as e:
-                print(f"Upload Part {part_index} failed: {e}")
-                await queue.put(part_index)
-            finally:
-                queue.task_done()
-
-    # 4 Workers for upload
-    workers = [asyncio.create_task(worker()) for _ in range(4)]
-    await queue.join()
-    
-    for w in workers:
-        w.cancel()
-
-    # Return the handle
-    from telethon.tl.types import InputFileBig
-    return InputFileBig(
-        id=file_id,
-        parts=part_count,
-        name=name if name else os.path.basename(file_path)
+    return await client.upload_file(
+        file_path,
+        progress_callback=progress_callback,
+        file_name=name,
+        part_size_kb=512
     )
