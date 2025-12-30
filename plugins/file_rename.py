@@ -31,7 +31,6 @@ License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICEN
 
 # Telethon imports
 from telethon import TelegramClient, events, Button, errors
-# CHANGED: ForceReply -> ReplyKeyboardForceReply
 from telethon.tl.types import DocumentAttributeVideo, DocumentAttributeAudio, ReplyKeyboardForceReply
 from telethon.sessions import StringSession
 import asyncio
@@ -194,15 +193,11 @@ async def refunc(event):
     reply_message = await event.get_reply_message()
     
     # Check if reply is to a ForceReply message
-    # In Telethon, we check if the message we replied to has reply_markup of type ReplyKeyboardForceReply
     if reply_message and reply_message.reply_markup and isinstance(reply_message.reply_markup, ReplyKeyboardForceReply):
         new_name = message.text 
         await message.delete() 
         
-        # Get the original file message (the one the ForceReply was replying to)
         try:
-            # The 'send_media_info' message replied to the ORIGINAL file.
-            # So reply_message.reply_to_msg_id is the ID of the file.
             file_msg = await client.get_messages(event.chat_id, ids=reply_message.reply_to_msg_id)
         except:
             return await event.reply("Could not find original file.")
@@ -241,8 +236,9 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
+        # FIX: Removed `text=` keyword argument, passed string positionally
         await event.reply(
-            text=f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
+            f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
             reply_to=file_msg.id,
             buttons=buttons
         )
@@ -351,8 +347,9 @@ async def doc(event):
              if is_premium_mode and is_upload_limit:
                  used_remove = int(used) - int(media.size)
                  await digital_botz.set_used_limit(user_id, used_remove)
+             # FIX: Removed text=
              return await rkn_processing.edit(
-                 text=f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
+                 f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
              )             
     else:
          caption = f"**{new_filename}**"
