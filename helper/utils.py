@@ -35,9 +35,8 @@ import math, time, re, datetime, pytz, os
 from config import Config, rkn
 import random
 
-# pyrogram imports
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
+# Telethon imports
+from telethon import Button, errors
 
 def get_speed_icon(speed_bps):
     speed_mbps = speed_bps / (1024 * 1024)
@@ -48,16 +47,23 @@ def get_speed_icon(speed_bps):
     else:
         return "🛸"
 
-
+# Renamed or kept compatible for existing calls
 async def progress_for_pyrogram(current, total, ud_type, message, start):
+    # Note: 'message' here is a Telethon Message object provided by the wrapper
     now = time.time()
     diff = now - start
+    
+    # Update every 5 seconds or at the end
     if round(diff % 5.00) == 0 or current == total:
         percentage = current * 100 / total
         speed = current / diff
         speed_icon = get_speed_icon(speed)
         elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000
+        if speed > 0:
+            time_to_completion = round((total - current) / speed) * 1000
+        else:
+            time_to_completion = 0
+            
         estimated_total_time = elapsed_time + time_to_completion
 
         elapsed_time = TimeFormatter(milliseconds=elapsed_time)
@@ -97,13 +103,15 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
         )
 
         try:
+            # Telethon edit: text=..., buttons=...
             await message.edit(
                 text=f"{ud_type}\n\n{tmp}",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("✖️ 𝙲𝙰𝙽𝙲ᴇʟ ✖️", callback_data="close")]]
-                )
+                buttons=[[Button.inline("✖️ 𝙲𝙰𝙽𝙲ᴇʟ ✖️", data="close")]]
             )
-        except:
+        except errors.MessageNotModifiedError:
+            pass
+        except Exception as e:
+            # print(f"Progress Error: {e}")
             pass
 
 
@@ -144,16 +152,33 @@ def convert(seconds):
 async def send_log(b, u):
     if Config.LOG_CHANNEL:
         curr = datetime.datetime.now(pytz.timezone("Africa/Nairobi"))
+        
+        # Telethon doesn't have .mention property, manual markdown
+        name = u.first_name if u.first_name else "User"
+        user_mention = f"[{name}](tg://user?id={u.id})"
+        username = f"@{u.username}" if u.username else "None"
+        
+        # Bot mention
+        try:
+            # If b is initialized client
+            bot_me = await b.get_me()
+            bot_mention = f"[{bot_me.first_name}](tg://user?id={bot_me.id})"
+        except:
+            bot_mention = "Bot"
+
         log_message = (
             "**🚀--Nᴇᴡ Uꜱᴇʀ Sᴛᴀʀᴛᴇᴅ Tʜᴇ Bᴏᴛ--**\n\n"
-            f"📜Uꜱᴇʀ: {u.mention}\n"
+            f"📜Uꜱᴇʀ: {user_mention}\n"
             f"🆔Iᴅ: `{u.id}`\n"
-            f"👤Uɴ: @{u.username}\n\n"
+            f"👤Uɴ: {username}\n\n"
             f"🗓️Dᴀᴛᴇ: {curr.strftime('%d %B, %Y')}\n"
             f"⏰Tɪᴍᴇ: {curr.strftime('%I:%M:%S %p')}\n\n"
-            f"🚀Started: {b.mention}"
+            f"🚀Started: {bot_mention}"
         )
-        await b.send_message(Config.LOG_CHANNEL, log_message)
+        try:
+            await b.send_message(Config.LOG_CHANNEL, log_message)
+        except Exception as e:
+            print(f"Error sending log: {e}")
 
 
 async def get_seconds_first(time_string):
