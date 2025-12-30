@@ -5,12 +5,10 @@ from telethon import utils
 
 async def fast_download(client, msg, file, progress_callback=None):
     """
-    Native Telethon download. 
-    Parallel downloading on a single client session often causes 'TLObject' errors.
-    This method is stable and fast if 'cryptg' is installed.
+    Standard Telethon download. 
+    This handles DC switching and file creation automatically, preventing 'TLObject' errors.
     """
     try:
-        # download_media handles DC switching and file creation automatically
         return await client.download_media(
             msg, 
             file=file, 
@@ -22,11 +20,10 @@ async def fast_download(client, msg, file, progress_callback=None):
 
 async def fast_upload(client, file_path, progress_callback=None, name=None):
     """
-    Native Telethon upload with optimized part size.
+    Standard Telethon upload with optimized part size.
     """
     try:
-        # Telethon's upload_file is highly optimized in recent versions.
-        # part_size_kb=512 is a sweet spot for speed/stability.
+        # 512kb part size is the sweet spot for speed and stability in Telethon
         return await client.upload_file(
             file_path,
             progress_callback=progress_callback,
