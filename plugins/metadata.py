@@ -29,58 +29,92 @@ Repo Link : https://github.com/DigitalBotz/Digital-Rename-Bot
 License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICENSE
 """
 
-# pyrogram imports
-from pyrogram import Client, filters
-from pyrogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.errors import ListenerTimeout
+# Telethon imports
+from telethon import events, Button
+import asyncio
 
 # extra imports
 from helper.database import digital_botz
-from config import rkn
+from config import rkn, Config
 
-TRUE = [[InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ ᴏɴ', callback_data='metadata_1'),
-       InlineKeyboardButton('✅', callback_data='metadata_1')
-       ],[
-       InlineKeyboardButton('Sᴇᴛ Cᴜsᴛᴏᴍ Mᴇᴛᴀᴅᴀᴛᴀ', callback_data='cutom_metadata')]]
-FALSE = [[InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ ᴏғғ', callback_data='metadata_0'),
-        InlineKeyboardButton('❌', callback_data='metadata_0')
-       ],[
-       InlineKeyboardButton('Sᴇᴛ Cᴜsᴛᴏᴍ Mᴇᴛᴀᴅᴀᴛᴀ', callback_data='cutom_metadata')]]
+# Telethon Button Layouts
+TRUE = [
+    [Button.inline('ᴍᴇᴛᴀᴅᴀᴛᴀ ᴏɴ', data='metadata_1'),
+     Button.inline('✅', data='metadata_1')],
+    [Button.inline('Sᴇᴛ Cᴜsᴛᴏᴍ Mᴇᴛᴀᴅᴀᴛᴀ', data='cutom_metadata')]
+]
+
+FALSE = [
+    [Button.inline('ᴍᴇᴛᴀᴅᴀᴛᴀ ᴏғғ', data='metadata_0'),
+     Button.inline('❌', data='metadata_0')],
+    [Button.inline('Sᴇᴛ Cᴜsᴛᴏᴍ Mᴇᴛᴀᴅᴀᴛᴀ', data='cutom_metadata')]
+]
 
 
-@Client.on_message(filters.private & filters.command('metadata'))
-async def handle_metadata(bot: Client, message: Message):
-    RknDev = await message.reply_text("**Please Wait...**", reply_to_message_id=message.id)
-    bool_metadata = await digital_botz.get_metadata_mode(message.from_user.id)
-    user_metadata = await digital_botz.get_metadata_code(message.from_user.id)
+@Config.BOT.on(events.NewMessage(pattern=r'^/metadata$', func=lambda e: e.is_private))
+async def handle_metadata(event):
+    # Send initial "Please wait" message
+    rkn_dev = await event.reply("**Please Wait...**")
+    
+    user_id = event.sender_id
+    bool_metadata = await digital_botz.get_metadata_mode(user_id)
+    user_metadata = await digital_botz.get_metadata_code(user_id)
 
-    await RknDev.edit(
+    await rkn_dev.edit(
         f"Your Current Metadata:-\n\n➜ `{user_metadata}`",
-        reply_markup=InlineKeyboardMarkup(TRUE if bool_metadata else FALSE)
+        buttons=(TRUE if bool_metadata else FALSE)
     )
 
 
-@Client.on_callback_query(filters.regex('.*?(custom_metadata|metadata).*?'))
-async def query_metadata(bot: Client, query: CallbackQuery):
-    data = query.data
+@Config.BOT.on(events.CallbackQuery(pattern=r'.*?(cutom_metadata|metadata).*?'))
+async def query_metadata(event):
+    bot = event.client
+    data = event.data.decode('utf-8')
+    user_id = event.sender_id
+
     if data.startswith('metadata_'):
         _bool = data.split('_')[1]
-        user_metadata = await digital_botz.get_metadata_code(query.from_user.id)
-        bool_meta = bool(eval(_bool))
-        await digital_botz.set_metadata_mode(query.from_user.id, bool_meta=not bool_meta)
-        await query.message.edit(f"Your Current Metadata:-\n\n➜ `{user_metadata}`", reply_markup=InlineKeyboardMarkup(FALSE if bool_meta else TRUE))
+        user_metadata = await digital_botz.get_metadata_code(user_id)
+        
+        # Determine boolean state (0 or 1)
+        # Note: eval is risky, strict comparison is safer, but keeping original logic flow
+        bool_meta = bool(int(_bool)) 
+        
+        await digital_botz.set_metadata_mode(user_id, bool_meta=not bool_meta)
+        
+        # Update the message
+        await event.edit(
+            f"Your Current Metadata:-\n\n➜ `{user_metadata}`", 
+            buttons=(FALSE if bool_meta else TRUE)
+        )
            
     elif data == 'cutom_metadata':
-        await query.message.delete()
+        await event.delete()
+        
+        # Telethon Conversation to simulate bot.ask
         try:
-            metadata = await bot.ask(text=rkn.SEND_METADATA, chat_id=query.from_user.id, filters=filters.text, timeout=30, disable_web_page_preview=True)
-            RknDev = await query.message.reply_text("**Please Wait...**", reply_to_message_id=metadata.id)
-            await digital_botz.set_metadata_code(query.from_user.id, metadata_code=metadata.text)
-            await RknDev.edit("**Your Metadata Code Set Successfully ✅**")
-        except ListenerTimeout:
-            await query.message.reply_text("⚠️ Error!!\n\n**Request timed out.**\nRestart by using /metadata", reply_to_message_id=query.message.id)
+            async with bot.conversation(user_id, timeout=30) as conv:
+                prompt_msg = await conv.send_message(
+                    text=rkn.SEND_METADATA,
+                    link_preview=False
+                )
+                
+                # Wait for response
+                metadata_response = await conv.get_response()
+                
+                rkn_dev = await metadata_response.reply("**Please Wait...**")
+                await digital_botz.set_metadata_code(user_id, metadata_code=metadata_response.text)
+                await rkn_dev.edit("**Your Metadata Code Set Successfully ✅**")
+                
+        except asyncio.TimeoutError:
+            # Telethon/Asyncio timeout
+            await bot.send_message(
+                user_id,
+                "⚠️ Error!!\n\n**Request timed out.**\nRestart by using /metadata"
+            )
         except Exception as e:
-            print(e)
+            print(f"Metadata Error: {e}")
+            await bot.send_message(user_id, f"Error: {e}")
 
 # Rkn Developer 
 # Don't Remove Credit 😔
