@@ -31,7 +31,8 @@ License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICEN
 
 # Telethon imports
 from telethon import TelegramClient, events, Button, errors
-from telethon.tl.types import DocumentAttributeVideo, DocumentAttributeAudio, ForceReply
+# CHANGED: ForceReply -> ReplyKeyboardForceReply
+from telethon.tl.types import DocumentAttributeVideo, DocumentAttributeAudio, ReplyKeyboardForceReply
 from telethon.sessions import StringSession
 import asyncio
 import os
@@ -43,7 +44,6 @@ from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 
 # bots imports
-# NOTE: Ensure progress_for_pyrogram in helper/utils is adapted or wrapped for Telethon
 from helper.utils import progress_for_pyrogram, convert, humanbytes, add_prefix_suffix, remove_path
 from helper.database import digital_botz
 from helper.ffmpeg import change_metadata
@@ -73,7 +73,6 @@ async def rename_start(event):
     user_id = event.sender_id
     
     # Get File Attributes
-    # Telethon helper 'file' gives easy access to basic attributes
     if not event.file:
         return
 
@@ -88,7 +87,7 @@ async def rename_start(event):
     filesize = humanbytes(rkn_file.size)
     mime_type = rkn_file.mime_type
     
-    # DC ID logic (Telethon documents have dc_id, but it's nested)
+    # DC ID logic
     dcid = "Unknown"
     if hasattr(message.media, 'document'):
         dcid = message.media.document.dc_id
@@ -135,11 +134,10 @@ async def rename_start(event):
             f"🆔 ᴅᴄ ɪᴅ: `{dcid}`\n\n"
             f"✏️ ᴘʟᴇᴀsᴇ ᴇɴᴛᴇʀ ᴛʜᴇ ɴᴇᴡ ғɪʟᴇɴᴀᴍᴇ ᴡɪᴛʜ ᴇxᴛᴇɴsɪᴏɴ ᴀɴᴅ ʀᴇᴘʟʏ ᴛᴏ ᴛʜɪs ᴍᴇssᴀɢᴇ...__**"
         )
-        # Use ForceReply from tl.types
-        await event.reply(text, reply_to=event.id, reply_markup=ForceReply())
+        # Use ReplyKeyboardForceReply via buttons parameter
+        await event.reply(text, reply_to=event.id, buttons=ReplyKeyboardForceReply(single_use=True, selective=True))
 
     # Check Premium/Upload Limits
-    # Assuming client.premium and uploadlimit are set in Config/Bot instance
     is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
     is_upload_limit = getattr(Config, 'UPLOAD_LIMIT_MODE', False)
 
@@ -169,7 +167,7 @@ async def rename_start(event):
 
         try:
             await send_media_info()
-            await asyncio.sleep(30) # Use asyncio.sleep instead of sleep
+            await asyncio.sleep(30)
         except errors.FloodWaitError as e:
             await asyncio.sleep(e.seconds)
             await send_media_info()
@@ -196,16 +194,15 @@ async def refunc(event):
     reply_message = await event.get_reply_message()
     
     # Check if reply is to a ForceReply message
-    if reply_message and reply_message.reply_markup and isinstance(reply_message.reply_markup, ForceReply):
+    # In Telethon, we check if the message we replied to has reply_markup of type ReplyKeyboardForceReply
+    if reply_message and reply_message.reply_markup and isinstance(reply_message.reply_markup, ReplyKeyboardForceReply):
         new_name = message.text 
         await message.delete() 
         
         # Get the original file message (the one the ForceReply was replying to)
-        # Note: In Telethon, we need to fetch the message object if not readily available
-        # The 'rename_start' replies to the file message, so reply_message is the bot's prompt.
-        # reply_message.reply_to_msg_id should point to the file.
-        
         try:
+            # The 'send_media_info' message replied to the ORIGINAL file.
+            # So reply_message.reply_to_msg_id is the ID of the file.
             file_msg = await client.get_messages(event.chat_id, ids=reply_message.reply_to_msg_id)
         except:
             return await event.reply("Could not find original file.")
@@ -254,7 +251,6 @@ async def refunc(event):
 @Config.BOT.on(events.CallbackQuery(pattern="upload"))
 async def doc(event):
     bot = event.client
-    # In Telethon callback query, event.message is the message with buttons
     rkn_processing = await event.edit("`☄️Processing...`")
 	
     # Creating Directory for Metadata
@@ -263,11 +259,8 @@ async def doc(event):
 
     user_id = event.chat_id
     # Extract filename from message text
-    # Format was: **• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`
     try:
         new_name = event.message.text
-        # We need to parse this robustly. 
-        # Telethon returns raw markdown usually.
         new_filename_ = new_name.split(":-")[1].strip().replace("`", "")
     except:
         new_filename_ = "unknown_file"
@@ -283,7 +276,6 @@ async def doc(event):
         return await rkn_processing.edit(f"⚠️ Something went wrong can't able to set Prefix or Suffix ☹️ \n\n❄️ Contact My Creator -> @RknDeveloperr\nError: {e}")
 
     # msg file location 
-    # In Telethon, get_reply_message gives the message the button msg replied to
     file_msg = await event.message.get_reply_message()
     if not file_msg or not file_msg.media:
         return await rkn_processing.edit("Original file not found.")
@@ -306,9 +298,6 @@ async def doc(event):
         total_used = int(used) + int(media.size)
         await digital_botz.set_used_limit(user_id, total_used)
 	
-    # Progress callback wrapper for Telethon
-    # Telethon calls callback(current, total)
-    # Helper expects (current, total, text, message, start_time)
     start_time = time.time()
     async def progress_wrapper(current, total):
         await progress_for_pyrogram(current, total, DOWNLOAD_TEXT, rkn_processing, start_time)
@@ -330,7 +319,6 @@ async def doc(event):
         metadata = await digital_botz.get_metadata_code(user_id)
         if metadata:
             await rkn_processing.edit("I Fᴏᴜɴᴅ Yᴏᴜʀ Mᴇᴛᴀᴅᴀᴛᴀ\n\n__**Pʟᴇᴀsᴇ Wᴀɪᴛ...**__\n**Aᴅᴅɪɴɢ Mᴇᴛᴀᴅᴀᴛᴀ Tᴏ Fɪʟᴇ....**")            
-            # Assuming change_metadata is a synchronous or blocking call, or compatible
             if change_metadata(dl_path, metadata_path, metadata):            
                 await rkn_processing.edit("Metadata Added.....")
                 print("Metadata Added.....")
@@ -354,7 +342,6 @@ async def doc(event):
 
     if c_caption:
          try:
-             # adding custom caption 
              caption = c_caption.format(
                  filename=new_filename,
                  filesize=humanbytes(media.size),
@@ -370,27 +357,18 @@ async def doc(event):
     else:
          caption = f"**{new_filename}**"
  
-    # Thumbnail logic
-    # Telethon media can access thumbs via file_msg
     thumb_to_download = None
     if c_thumb:
         thumb_to_download = c_thumb
     elif file_msg.file.thumbs:
-        # Telethon handles thumbs differently, simpler to let it auto-download if passed to download_media
-        # But we need a path to resize.
-        thumb_to_download = file_msg # pass message, it downloads thumb
+        thumb_to_download = file_msg 
         
     if thumb_to_download:
-         ph_path = "thumb.jpg" # temporary path
+         ph_path = "thumb.jpg" 
          try:
-             # If c_thumb is a URL or file object, handling might vary. 
-             # Assuming c_thumb is a file_id string or similar, Telethon might need object.
-             # If c_thumb is from DB, it's likely a file_id or path.
-             # For simplicity, we try to download the thumb from the original message if custom not set
              if c_thumb:
                   path_ = await bot.download_media(c_thumb, file=ph_path)
              else:
-                  # Download thumb from original message
                   path_ = await bot.download_media(file_msg, file=ph_path, thumb=-1)
 
              if path_ and os.path.exists(path_):
@@ -405,9 +383,8 @@ async def doc(event):
              print(f"Thumb error: {e}")
              ph_path = None
 
-    upload_type = event.data.decode("utf-8").split("_")[1] # 'document', 'video', 'audio'
+    upload_type = event.data.decode("utf-8").split("_")[1] 
     
-    # Select Client (Premium 'app' or Standard 'bot')
     upload_client = bot
     if media.size > 2000 * 1024 * 1024:
         if app:
@@ -415,16 +392,13 @@ async def doc(event):
         else:
             return await rkn_processing.edit("File > 2GB and no Premium Session configured.")
 
-    # Upload Arguments
     final_path = metadata_path if metadata_mode and os.path.exists(metadata_path) else file_path
     
     attributes = []
     if upload_type == "video":
-        # Video Attributes
-        # Telethon auto-detects w/h usually, but we can enforce duration
         attributes.append(DocumentAttributeVideo(
             duration=duration,
-            w=0, h=0, # Auto
+            w=0, h=0, 
             supports_streaming=True
         ))
     elif upload_type == "audio":
@@ -434,13 +408,11 @@ async def doc(event):
             performer="Unknown"
         ))
     
-    # Reset progress time for upload
     start_time = time.time()
     async def upload_progress(current, total):
         await progress_for_pyrogram(current, total, UPLOAD_TEXT, rkn_processing, start_time)
 
     try:
-        # 1. Send to Log Channel
         uploaded_msg = await upload_client.send_file(
             Config.LOG_CHANNEL,
             file=final_path,
@@ -451,22 +423,9 @@ async def doc(event):
             progress_callback=upload_progress
         )
         
-        # 2. Forward/Copy to User
-        # If upload_client is 'app' (different account), 'bot' might not see the msg immediately 
-        # to copy it if it's not in the channel or if ids differ.
-        # But usually in these setups, bot is admin in log channel.
-        
-        # Telethon doesn't have "copy_message" that downloads and re-uploads efficiently cross-account
-        # without reference. However, if we just uploaded it, we have the object.
-        # If upload_client == bot, easy.
-        # If upload_client == app, we need to ensure 'bot' can see it.
-        
         if upload_client == bot:
             await bot.send_message(user_id, file=uploaded_msg.media, caption=caption)
         else:
-            # If uploaded by Premium client, Bot forwards it or sends by reference
-            # For strict copy (no forward tag), bot needs to resend the media handle.
-            # This works if bot has access to the message in Log Channel.
             await bot.send_message(user_id, file=uploaded_msg.media, caption=caption)
             
         await bot.delete_messages(Config.LOG_CHANNEL, uploaded_msg.id)
@@ -478,7 +437,6 @@ async def doc(event):
         await remove_path(ph_path, file_path, dl_path, metadata_path)
         return await rkn_processing.edit(f" Eʀʀᴏʀ {e}")
 
-    # Cleanup
     await remove_path(ph_path, file_path, dl_path, metadata_path)
     return await rkn_processing.edit("🎈 Uploaded Successfully....")
     
