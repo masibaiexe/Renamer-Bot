@@ -77,20 +77,6 @@ async def start(event):
 
     await digital_botz.add_user(client, event)
 
-    # 🧩 Send sticker (Fixed: Using event.reply with file arg)
-    try:
-        await event.reply(file="CAACAgUAAxkBAAEP_ulpPdACjdOAuTuAu-zy-9jHfNuJmgACkBAAAv6qCFfnv7MXxQ1_IjYE")
-    except:
-        pass
-
-    # ⏳ Wait 2 seconds
-    await asyncio.sleep(2)
-
-    # ⌨️ Typing animation
-    async with client.action(event.chat_id, 'typing'):
-        # ⏳ Typing duration
-        await asyncio.sleep(2)
-
     mention = get_mention(user)
 
     # 📝 Send start message (HTML enabled for config text)
@@ -103,7 +89,6 @@ async def start(event):
             parse_mode='html'
         )
     else:
-        # Fixed: Removed text= keyword
         await event.reply(
             rkn.START_TXT.format(mention),
             buttons=start_button,
@@ -158,8 +143,6 @@ async def myplan(event):
 
         text += f"⏳ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left}\n\n📅 ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}"
 
-        # Fixed: Removed parse_mode='html' so backticks work (Mono font)
-        # Fixed: Passed text positionally
         await event.reply(text)
 
     else:
@@ -173,12 +156,10 @@ async def myplan(event):
 
             text = f"👤 ᴜꜱᴇʀ :- {mention}\n🆔 ᴜꜱᴇʀ ɪᴅ :- `{user_id}`\n📦 ᴘʟᴀɴ :- `{type_plan}`\n📈 ᴅᴀɪʟʏ ᴜᴘʟᴏᴀᴅ ʟɪᴍɪᴛ :- `{humanbytes(limit)}`\n📊 ᴛᴏᴅᴀʏ ᴜsᴇᴅ :- `{humanbytes(used)}`\n🧮 ʀᴇᴍᴀɪɴ :- `{humanbytes(remain)}`\n📅 ᴇxᴘɪʀᴇᴅ ᴅᴀᴛᴇ :- ʟɪғᴇᴛɪᴍᴇ\n\n💎 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ, ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ 👇"
 
-            # Fixed: Passed text positionally
             await event.reply(text, buttons=[[Button.inline("💸 ᴄʜᴇᴄᴋᴏᴜᴛ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴꜱ 💸", data='upgrade')]])
 
         else:
             try:
-                # Fixed: sticker sending logic
                 m = await event.reply(file="CAACAgIAAxkBAAIBTGVjQbHuhOiboQsDm35brLGyLQ28AAJ-GgACglXYSXgCrotQHjibHgQ")
             except:
                 m = None
@@ -207,7 +188,6 @@ async def plans(event):
     free_trial_status = await digital_botz.get_free_trial_status(user.id)
     if not await digital_botz.has_premium_access(user.id):
         if not free_trial_status:
-            # FIXED: Removed 'text=' keyword. Passed upgrade_msg positionally.
             await event.reply(upgrade_msg, buttons=upgrade_trial_button, link_preview=False, parse_mode='html')
         else:
             await event.reply(upgrade_msg, buttons=upgrade_button, link_preview=False, parse_mode='html')
@@ -241,7 +221,6 @@ async def cb_handler(event):
         if is_premium_mode:
             start_button.append([Button.inline('💸 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ 💸', data='upgrade')])
         
-        # Fixed: Removed text= keyword
         await event.edit(
             rkn.START_TXT.format(mention),
             link_preview=False,
@@ -250,7 +229,6 @@ async def cb_handler(event):
         )
 
     elif data == "help":
-        # Fixed: Removed text= keyword
         await event.edit(
             rkn.HELP_TXT,
             link_preview=False,
@@ -294,7 +272,6 @@ async def cb_handler(event):
         bot_user = await client.get_me()
         bot_mention = get_mention(bot_user)
         
-        # Fixed: Removed text= keyword
         await event.edit(
             rkn.ABOUT_TXT.format(
                 bot_mention, 
@@ -382,11 +359,11 @@ async def cb_handler(event):
         sent = humanbytes(psutil.net_io_counters().bytes_sent)
         recv = humanbytes(psutil.net_io_counters().bytes_recv)
         
+        # Fixed: Removed parse_mode here as requested
         await event.edit(
             rkn.BOT_STATUS.format(uptime, total_users, total_premium_users, sent, recv),
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
-            parse_mode='html'
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]]
         )
 
     elif data == "live_status":
@@ -403,11 +380,11 @@ async def cb_handler(event):
         ram_usage = psutil.virtual_memory().percent
         disk_usage = psutil.disk_usage('/').percent
         
+        # Fixed: Removed parse_mode here as requested
         await event.edit(
             rkn.LIVE_STATUS.format(uptime, cpu_usage, ram_usage, total, used, disk_usage, free, sent, recv),
             link_preview=False,
-            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
-            parse_mode='html'
+            buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]]
         )
 
     elif data == "source_code":
