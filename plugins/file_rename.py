@@ -217,7 +217,7 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # FIX: Use client.send_message instead of event.reply to Ensure 'reply_to' targets the FILE, not the text message
+        # Force reply to the FILE message to maintain context
         await client.send_message(
             event.chat_id,
             f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
@@ -230,10 +230,10 @@ async def refunc(event):
 async def doc(event):
     bot = event.client
     
-    # FIX: Get the message object correctly for Telethon CallbackQuery
+    # Get the message object correctly
     msg = await event.get_message()
     
-    # FIX: Capture the original text (with filename) BEFORE editing
+    # Capture the original text (with filename) BEFORE editing
     original_text = msg.text
     
     rkn_processing = await msg.edit("`☄️Processing...`")
@@ -261,7 +261,7 @@ async def doc(event):
     except Exception as e:
         return await rkn_processing.edit(f"⚠️ Something went wrong can't able to set Prefix or Suffix ☹️ \n\n❄️ Contact My Creator -> @RknDeveloperr\nError: {e}")
 
-    # FIX: Robust way to get the original file message
+    # Robust way to get the original file message
     file_msg = await msg.get_reply_message()
     if not file_msg and msg.reply_to_msg_id:
         try:
@@ -349,19 +349,19 @@ async def doc(event):
     else:
          caption = f"**{new_filename}**"
  
+    # FIX: Correctly check for thumbs on the message object
     thumb_to_download = None
+    
     if c_thumb:
         thumb_to_download = c_thumb
-    elif file_msg.file.thumbs:
+    elif (file_msg.document and file_msg.document.thumbs) or file_msg.photo:
         thumb_to_download = file_msg 
         
     if thumb_to_download:
          ph_path = "thumb.jpg" 
          try:
-             if c_thumb:
-                  path_ = await bot.download_media(c_thumb, file=ph_path)
-             else:
-                  path_ = await bot.download_media(file_msg, file=ph_path, thumb=-1)
+             # Download logic: pass message or custom path
+             path_ = await bot.download_media(thumb_to_download, file=ph_path, thumb=-1)
 
              if path_ and os.path.exists(path_):
                  Image.open(path_).convert("RGB").save(path_)
