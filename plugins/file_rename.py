@@ -218,10 +218,10 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # Force reply to the FILE message to maintain context
+        # FIX 2: Modified the prompt text to remove ** around the label, preventing extraction issues
         await client.send_message(
             event.chat_id,
-            f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
+            f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n• Fɪʟᴇ Nᴀᴍᴇ :- `{new_name}`",
             reply_to=file_msg.id,
             buttons=buttons
         )
@@ -246,10 +246,10 @@ async def doc(event):
 
     user_id = event.chat_id
     
-    # Extract filename from the CAPTURED text
+    # FIX 1: Robust extraction - Clean any bold markers (**) if they still exist
     try:
         new_name = original_text
-        new_filename_ = new_name.split(":-")[1].strip().replace("`", "")
+        new_filename_ = new_name.split(":-")[1].strip().replace("`", "").replace("**", "")
     except:
         new_filename_ = "unknown_file"
 
@@ -349,7 +349,7 @@ async def doc(event):
                  f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
              )             
     else:
-         # FIXED: Removed asterisks. Now just plain text.
+         # FIX 3: Plain text caption (no asterisks)
          caption = f"{new_filename}"
  
     # Correctly check for thumbs on the message object
@@ -437,5 +437,5 @@ async def doc(event):
         return await rkn_processing.edit(f" Eʀʀᴏʀ {e}")
 
     await remove_path(ph_path, file_path, dl_path, metadata_path)
-    # FIXED: Added buttons=None to remove buttons from the final message
+    # Buttons cleared
     return await rkn_processing.edit("🎈 Uploaded Successfully....", buttons=None)
