@@ -218,7 +218,6 @@ async def refunc(event):
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
         # Force reply to the FILE message to maintain context
-        # Using send_message with reply_to targets the correct message
         await client.send_message(
             event.chat_id,
             f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
@@ -237,7 +236,8 @@ async def doc(event):
     # Capture the original text (with filename) BEFORE editing
     original_text = msg.text
     
-    rkn_processing = await msg.edit("`☄️Processing...`")
+    # Edit message to Processing and CLEAR BUTTONS
+    rkn_processing = await msg.edit("`☄️Processing...`", buttons=None)
 	
     # Creating Directory for Metadata
     if not os.path.isdir("Metadata"):
@@ -348,7 +348,8 @@ async def doc(event):
                  f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
              )             
     else:
-         caption = f"**{new_filename}**"
+         # FIXED: Removed the bold markdown ** ** around the filename
+         caption = f"{new_filename}"
  
     # Correctly check for thumbs on the message object
     thumb_to_download = None
@@ -416,7 +417,7 @@ async def doc(event):
             progress_callback=upload_progress
         )
         
-        # FIX: Use send_file instead of send_message to avoid 'caption' error
+        # Use send_file instead of send_message to avoid 'caption' error
         await bot.send_file(
             user_id,
             file=uploaded_msg.media,
@@ -433,4 +434,5 @@ async def doc(event):
         return await rkn_processing.edit(f" Eʀʀᴏʀ {e}")
 
     await remove_path(ph_path, file_path, dl_path, metadata_path)
-    return await rkn_processing.edit("🎈 Uploaded Successfully....")
+    # FIXED: Added buttons=None to clear any previous buttons (like Cancel)
+    return await rkn_processing.edit("🎈 Uploaded Successfully....", buttons=None)
