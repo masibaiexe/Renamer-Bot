@@ -9,25 +9,6 @@
 """
 Apache License 2.0
 Copyright (c) 2022 @Digital_Botz
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Telegram Link : https://t.me/Digital_Botz 
-Repo Link : https://github.com/DigitalBotz/Digital-Rename-Bot
-License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICENSE
 """
 
 # extra imports
@@ -47,9 +28,8 @@ def get_speed_icon(speed_bps):
     else:
         return "🛸"
 
-# Renamed or kept compatible for existing calls
 async def progress_for_pyrogram(current, total, ud_type, message, start):
-    # Note: 'message' here is a Telethon Message object provided by the wrapper
+    # Note: 'message' is a Telethon Message object
     now = time.time()
     diff = now - start
     
@@ -74,45 +54,30 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             ''.join(["▢" for _ in range(20 - math.floor(percentage / 5))])
         )
 
-        # Static footer (Option A)
-        footer = "╰━━━━━━━━━━━━━━━━➣"
-
-        progress_template = f"""<b>
-╭━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━━➣
-
-┃    🗂️ ᴄᴏᴍᴘʟᴇᴛᴇᴅ: {{1}}
-
-┃    📦 ᴛᴏᴛᴀʟ ꜱɪᴢᴇ: {{2}}
-
-┃    🔋 ꜱᴛᴀᴛᴜꜱ: {{0}}%
-
-┃    {{3}} ꜱᴘᴇᴇᴅ: {{5}}/s
-
-┃    ⏰ ᴇᴛᴀ: {{4}}
-
-{footer}
-</b>"""
-
-        tmp = progress_bar + progress_template.format(
-            round(percentage, 2),
-            humanbytes(current),
-            humanbytes(total),
-            speed_icon,
-            estimated_total_time,
-            humanbytes(speed)
+        # Formatted Output
+        tmp = (
+            f"<b>{ud_type}</b>\n\n"
+            f"{progress_bar}\n\n"
+            f"<b>╭━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━━➣</b>\n"
+            f"<b>┃    🗂️ ᴄᴏᴍᴘʟᴇᴛᴇᴅ: {humanbytes(current)}</b>\n"
+            f"<b>┃    📦 ᴛᴏᴛᴀʟ ꜱɪᴢᴇ: {humanbytes(total)}</b>\n"
+            f"<b>┃    🔋 ꜱᴛᴀᴛᴜꜱ: {round(percentage, 2)}%</b>\n"
+            f"<b>┃    {speed_icon} ꜱᴘᴇᴇᴅ: {humanbytes(speed)}/s</b>\n"
+            f"<b>┃    ⏰ ᴇᴛᴀ: {estimated_total_time}</b>\n"
+            f"<b>╰━━━━━━━━━━━━━━━━➣</b>"
         )
 
         try:
-            # Telethon edit: text=..., buttons=...
+            # Telethon edit
             await message.edit(
-                text=f"{ud_type}\n\n{tmp}",
+                text=tmp,
+                parse_mode='html',
                 buttons=[[Button.inline("✖️ 𝙲𝙰𝙽𝙲ᴇʟ ✖️", data="close")]]
             )
         except errors.MessageNotModifiedError:
             pass
         except Exception as e:
-            # print(f"Progress Error: {e}")
-            pass
+            print(f"Progress Error: {e}")
 
 
 def humanbytes(size):
@@ -160,7 +125,6 @@ async def send_log(b, u):
         
         # Bot mention
         try:
-            # If b is initialized client
             bot_me = await b.get_me()
             bot_mention = f"[{bot_me.first_name}](tg://user?id={bot_me.id})"
         except:
