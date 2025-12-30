@@ -8,25 +8,6 @@
 """
 Apache License 2.0
 Copyright (c) 2022 @Digital_Botz
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Telegram Link : https://t.me/Digital_Botz 
-Repo Link : https://github.com/DigitalBotz/Digital-Rename-Bot
-License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICENSE
 """
 
 # extra imports
@@ -42,8 +23,6 @@ from config import Config, rkn
 from helper.utils import humanbytes
 # Note: Ensure plugins/__init__.py exposes these variables correctly
 from plugins import __version__ as _bot_version_, __developer__, __database__, __library__, __language__, __programer__
-# Import the upload handler logic
-from plugins.file_rename import doc as upload_doc
 
 def format_uptime(seconds: int) -> str:
     days, remainder = divmod(seconds, 86400)
@@ -115,7 +94,6 @@ async def start(event):
     mention = get_mention(user)
 
     # 📝 Send start message
-    # Added parse_mode='html'
     if Config.RKN_PIC:
         await client.send_file(
             event.chat_id,
@@ -301,7 +279,6 @@ async def cb_handler(event):
         else:
             about_button[-1].append(Button.inline("Bᴀᴄᴋ", data="start"))
             
-        # FIX: Fetch bot user explicitly to get name and id
         bot_user = await client.get_me()
         bot_mention = get_mention(bot_user)
         
@@ -379,16 +356,13 @@ async def cb_handler(event):
         )
 
     elif data == "bot_status":
-        #📜 fetch real values
         real_total_users = await digital_botz.total_users_count()
         real_total_premium_users = await digital_botz.total_premium_users_count()
-        #🪄 Magic Boost
         total_users = real_total_users + 1009
         
         is_premium_mode = getattr(Config, 'PREMIUM_MODE', False)
         total_premium_users = real_total_premium_users + 50 if is_premium_mode else "Disabled ✅"
         
-        # Calculate uptime using bot's start time (stored in Config)
         uptime_seconds = int(time.time() - Config.BOT_UPTIME)
         uptime = format_uptime(uptime_seconds)
         
@@ -399,7 +373,6 @@ async def cb_handler(event):
             text=rkn.BOT_STATUS.format(uptime, total_users, total_premium_users, sent, recv),
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
-            parse_mode='html'
         )
 
     elif data == "live_status":
@@ -420,7 +393,6 @@ async def cb_handler(event):
             text=rkn.LIVE_STATUS.format(uptime, cpu_usage, ram_usage, total, used, disk_usage, free, sent, recv),
             link_preview=False,
             buttons=[[Button.inline(" Bᴀᴄᴋ", data="about")]],
-            parse_mode='html'
         )
 
     elif data == "source_code":
@@ -428,46 +400,20 @@ async def cb_handler(event):
             text=rkn.DEV_TXT,
             link_preview=False,
             buttons=[
-                [
-                    # ⚠️ DO NOT REMOVE MAIN SOURCE ⚠️
-                    Button.url(
-                        "💞 Mᴀɪɴ Sᴏᴜʀᴄᴇ 💞",
-                        url="https://github.com/DigitalBotz/Digital-Rename-Bot"
-                    )
-                ],
-                [
-                    # ✅ Forked source button
-                    Button.url(
-                        "🍴 Fᴏʀᴋᴇᴅ Sᴏᴜʀᴄᴇ 🍴",
-                        url="https://github.com/yudurov/Digital-Renamer-Bot"
-                    )
-                ],
-                [
-                    Button.inline("🔒 Cʟᴏꜱᴇ", data="close"),
-                    Button.inline("◀️ Bᴀᴄᴋ", data="start")
-                ]
+                [Button.url("💞 Mᴀɪɴ Sᴏᴜʀᴄᴇ 💞", url="https://github.com/DigitalBotz/Digital-Rename-Bot")],
+                [Button.url("🍴 Fᴏʀᴋᴇᴅ Sᴏᴜʀᴄᴇ 🍴", url="https://github.com/yudurov/Digital-Renamer-Bot")],
+                [Button.inline("🔒 Cʟᴏꜱᴇ", data="close"), Button.inline("◀️ Bᴀᴄᴋ", data="start")]
             ],
             parse_mode='html'
         )
 
-    elif data.startswith("upload"):
-        # Delegate to the upload handler defined in file_rename.py
-        # We pass the event object which is compatible 
-        await upload_doc(event)
+    # REMOVED the "upload" block to avoid conflict with file_rename.py
 
     elif data == "close":
         try:
             await event.delete()
-            # Try to delete reply message if exists
             reply_msg = await event.get_reply_message()
             if reply_msg:
                 await reply_msg.delete()
         except:
             pass
-
-# (c) @RknDeveloperr
-# Rkn Developer 
-# Don't Remove Credit 😔
-# Telegram Channel @RknDeveloper & @Rkn_Botz
-# Developer @RknDeveloperr
-# Update Channel @Digital_Botz & @DigitalBotz_Support
