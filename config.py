@@ -30,46 +30,55 @@ License Link : https://github.com/DigitalBotz/Digital-Rename-Bot/blob/main/LICEN
 """
 
 import re, os, time
+
+# Compile the pattern for numeric IDs
 id_pattern = re.compile(r'^.\d+$') 
 
 class Config(object):
-    # digital_botz client config
-    API_ID = os.environ.get("API_ID", "rfl")
+    # Telethon client config
+    # Telethon strictly requires API_ID to be an integer
+    API_ID = int(os.environ.get("API_ID", "12345")) 
     API_HASH = os.environ.get("API_HASH", "rdl")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "rfl") 
+    
+    # Telethon Client Object (Placeholder)
     BOT = None
 
-    # premium account string session required 😢 
+    # Premium account string session required (TelethonStringSession)
     STRING_SESSION = os.environ.get("STRING_SESSION", "rfl")
     
-    # database config
-    DB_NAME = os.environ.get("DB_NAME","rfl")     
-    DB_URL = os.environ.get("DB_URL","rdl")
+    # Database config
+    DB_NAME = os.environ.get("DB_NAME", "rfl")     
+    DB_URL = os.environ.get("DB_URL", "rdl")
  
-    # other configs
+    # Other configs
     RKN_PIC = os.environ.get("RKN_PIC", "https://i.ibb.co/fzgHjXQn/1752254564132.png")
+    
+    # Admin list processing
     ADMIN = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '6318135266').split()]
+    
+    # Log channel ID
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1001925329161"))
 
-    # free upload limit 
+    # Free upload limit 
     FREE_UPLOAD_LIMIT = 6442450944 # calculation 6*1024*1024*1024=results
 
-    # premium mode feature ✅
+    # Premium mode feature ✅
     UPLOAD_LIMIT_MODE = True 
     PREMIUM_MODE = True 
     
-    #force subs
+    # Force subs
     try:
-        FORCE_SUB = int(os.environ.get("FORCE_SUB", "")) 
+        FORCE_SUB = int(os.environ.get("FORCE_SUB", "0")) 
     except:
         FORCE_SUB = os.environ.get("FORCE_SUB", "OtherBs")
         
-    # wes response configuration     
+    # Web response configuration     
     PORT = int(os.environ.get("PORT", "8590"))
     BOT_UPTIME = time.time()
 
 class rkn(object):
-    # part of text configuration
+    # Part of text configuration
     START_TXT = """✨ <b>Greetings, {}! 🧙‍♂️</b>
 
 🔮 <b>Welcome to the Ultimate File Renaming Bot!</b>
