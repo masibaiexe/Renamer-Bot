@@ -18,6 +18,7 @@ import asyncio
 import os
 import time
 from PIL import Image
+from html import escape 
 
 # hachoir imports
 from hachoir.metadata import extractMetadata
@@ -348,8 +349,8 @@ async def doc(event):
                  f"Yᴏᴜʀ Cᴀᴩᴛɪᴏɴ Eʀʀᴏʀ Exᴄᴇᴩᴛ Kᴇyᴡᴏʀᴅ Aʀɢᴜᴍᴇɴᴛ ●> ({e})"
              )             
     else:
-         # FIXED: Removed the bold markdown ** ** around the filename
-         caption = f"{new_filename}"
+         # FIXED: Using HTML tag <b> for bold, replacing Markdown **
+         caption = f"<b>{new_filename}</b>"
  
     # Correctly check for thumbs on the message object
     thumb_to_download = None
@@ -414,14 +415,16 @@ async def doc(event):
             caption=caption,
             attributes=attributes,
             force_document=(upload_type == "document"),
-            progress_callback=upload_progress
+            progress_callback=upload_progress,
+            parse_mode='html' # Ensure HTML parsing is used for Log Channel too
         )
         
-        # Use send_file instead of send_message to avoid 'caption' error
+        # FIXED: Use send_file with parse_mode='html'
         await bot.send_file(
             user_id,
             file=uploaded_msg.media,
-            caption=caption
+            caption=caption,
+            parse_mode='html'
         )
             
         await bot.delete_messages(Config.LOG_CHANNEL, uploaded_msg.id)
@@ -434,5 +437,5 @@ async def doc(event):
         return await rkn_processing.edit(f" Eʀʀᴏʀ {e}")
 
     await remove_path(ph_path, file_path, dl_path, metadata_path)
-    # FIXED: Added buttons=None to clear any previous buttons (like Cancel)
+    # FIXED: buttons=None clears the buttons
     return await rkn_processing.edit("🎈 Uploaded Successfully....", buttons=None)
