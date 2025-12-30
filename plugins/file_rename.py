@@ -217,7 +217,7 @@ async def refunc(event):
         elif is_audio:
             buttons.append([Button.inline("🎵 Aᴜᴅɪᴏ", data="upload_audio")])
 
-        # FIX: Send text positionally, not as keyword
+        # Pass text positionally
         await event.reply(
             f"**Sᴇʟᴇᴄᴛ Tʜᴇ Oᴜᴛᴩᴜᴛ Fɪʟᴇ Tyᴩᴇ**\n**• Fɪʟᴇ Nᴀᴍᴇ :-**`{new_name}`",
             reply_to=file_msg.id,
@@ -228,16 +228,24 @@ async def refunc(event):
 @Config.BOT.on(events.CallbackQuery(pattern="upload"))
 async def doc(event):
     bot = event.client
-    rkn_processing = await event.edit("`☄️Processing...`")
+    
+    # FIX: Get the message object correctly for Telethon CallbackQuery
+    msg = await event.get_message()
+    
+    # FIX: Capture the original text (with filename) BEFORE editing
+    original_text = msg.text
+    
+    rkn_processing = await msg.edit("`☄️Processing...`")
 	
     # Creating Directory for Metadata
     if not os.path.isdir("Metadata"):
         os.mkdir("Metadata")
 
     user_id = event.chat_id
-    # Extract filename from message text
+    
+    # Extract filename from the CAPTURED text
     try:
-        new_name = event.message.text
+        new_name = original_text
         new_filename_ = new_name.split(":-")[1].strip().replace("`", "")
     except:
         new_filename_ = "unknown_file"
@@ -252,8 +260,8 @@ async def doc(event):
     except Exception as e:
         return await rkn_processing.edit(f"⚠️ Something went wrong can't able to set Prefix or Suffix ☹️ \n\n❄️ Contact My Creator -> @RknDeveloperr\nError: {e}")
 
-    # msg file location 
-    file_msg = await event.message.get_reply_message()
+    # FIX: Get reply message from the message object
+    file_msg = await msg.get_reply_message()
     if not file_msg or not file_msg.media:
         return await rkn_processing.edit("Original file not found.")
 
